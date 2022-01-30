@@ -1,4 +1,3 @@
-#include <imgui.h>
 #include <spdlog/spdlog.h>
 #include <module.h>
 #include <gui/gui.h>
@@ -7,12 +6,13 @@
 #include <gui/style.h>
 #include <config.h>
 #include <options.h>
+#include <gui/smgui.h>
 #include <airspyhf.h>
 #include <gui/widgets/stepped_slider.h>
 
 #define CONCAT(a, b) ((std::string(a) + b).c_str())
 
-SDRPP_MOD_INFO {
+SDRPP_MOD_INFO{
     /* Name:            */ "airspyhf_source",
     /* Description:     */ "Airspy HF+ source module for SDR++",
     /* Author:          */ "Ryzerth",
@@ -127,7 +127,7 @@ public:
             sprintf(buf, "%016" PRIX64, selectedSerial);
             spdlog::error("Could not open Airspy HF+ {0}", buf);
         }
-        
+
         selectedSerial = serial;
 
         uint32_t sampleRates[256];
@@ -212,7 +212,7 @@ private:
         AirspyHFSourceModule* _this = (AirspyHFSourceModule*)ctx;
         spdlog::info("AirspyHFSourceModule '{0}': Menu Deselect!", _this->name);
     }
-    
+
     static void start(void* ctx) {
         AirspyHFSourceModule* _this = (AirspyHFSourceModule*)ctx;
         if (_this->running) { return; }
@@ -243,7 +243,7 @@ private:
         _this->running = true;
         spdlog::info("AirspyHFSourceModule '{0}': Start!", _this->name);
     }
-    
+
     static void stop(void* ctx) {
         AirspyHFSourceModule* _this = (AirspyHFSourceModule*)ctx;
         if (!_this->running) { return; }
@@ -253,7 +253,7 @@ private:
         _this->stream.clearWriteStop();
         spdlog::info("AirspyHFSourceModule '{0}': Stop!", _this->name);
     }
-    
+
     static void tune(double freq, void* ctx) {
         AirspyHFSourceModule* _this = (AirspyHFSourceModule*)ctx;
         if (_this->running) {
@@ -262,15 +262,15 @@ private:
         _this->freq = freq;
         spdlog::info("AirspyHFSourceModule '{0}': Tune: {1}!", _this->name, freq);
     }
-    
+
     static void menuHandler(void* ctx) {
         AirspyHFSourceModule* _this = (AirspyHFSourceModule*)ctx;
-        float menuWidth = ImGui::GetContentRegionAvailWidth();
 
-        if (_this->running) { style::beginDisabled(); }
+        if (_this->running) { SmGui::BeginDisabled(); }
 
-        ImGui::SetNextItemWidth(menuWidth);
-        if (ImGui::Combo(CONCAT("##_airspyhf_dev_sel_", _this->name), &_this->devId, _this->devListTxt.c_str())) {
+        SmGui::FillWidth();
+        SmGui::ForceSync();
+        if (SmGui::Combo(CONCAT("##_airspyhf_dev_sel_", _this->name), &_this->devId, _this->devListTxt.c_str())) {
             _this->selectBySerial(_this->devList[_this->devId]);
             core::setInputSampleRate(_this->sampleRate);
             if (_this->selectedSerStr != "") {
@@ -280,7 +280,7 @@ private:
             }
         }
 
-        if (ImGui::Combo(CONCAT("##_airspyhf_sr_sel_", _this->name), &_this->srId, _this->sampleRateListTxt.c_str())) {
+        if (SmGui::Combo(CONCAT("##_airspyhf_sr_sel_", _this->name), &_this->srId, _this->sampleRateListTxt.c_str())) {
             _this->sampleRate = _this->sampleRateList[_this->srId];
             core::setInputSampleRate(_this->sampleRate);
             if (_this->selectedSerStr != "") {
@@ -290,9 +290,10 @@ private:
             }
         }
 
-        ImGui::SameLine();
-        float refreshBtnWdith = menuWidth - ImGui::GetCursorPosX();
-        if (ImGui::Button(CONCAT("Refresh##_airspyhf_refr_", _this->name), ImVec2(refreshBtnWdith, 0))) {
+        SmGui::SameLine();
+        SmGui::FillWidth();
+        SmGui::ForceSync();
+        if (SmGui::Button(CONCAT("Refresh##_airspyhf_refr_", _this->name))) {
             _this->refresh();
             config.acquire();
             std::string devSerial = config.conf["device"];
@@ -301,11 +302,11 @@ private:
             core::setInputSampleRate(_this->sampleRate);
         }
 
-        if (_this->running) { style::endDisabled(); }
+        if (_this->running) { SmGui::EndDisabled(); }
 
-        ImGui::LeftLabel("AGC Mode");
-        ImGui::SetNextItemWidth(menuWidth - ImGui::GetCursorPosX());
-        if (ImGui::Combo(CONCAT("##_airspyhf_agc_", _this->name), &_this->agcMode, AGG_MODES_STR)) {
+        SmGui::LeftLabel("AGC Mode");
+        SmGui::FillWidth();
+        if (SmGui::Combo(CONCAT("##_airspyhf_agc_", _this->name), &_this->agcMode, AGG_MODES_STR)) {
             if (_this->running) {
                 airspyhf_set_hf_agc(_this->openDev, (_this->agcMode != 0));
                 if (_this->agcMode > 0) {
@@ -319,9 +320,9 @@ private:
             }
         }
 
-        ImGui::LeftLabel("Attenuation");
-        ImGui::SetNextItemWidth(menuWidth - ImGui::GetCursorPosX());
-        if (ImGui::SliderFloatWithSteps(CONCAT("##_airspyhf_attn_", _this->name), &_this->atten, 0, 48, 6, "%.0f dB")) {
+        SmGui::LeftLabel("Attenuation");
+        SmGui::FillWidth();
+        if (SmGui::SliderFloatWithSteps(CONCAT("##_airspyhf_attn_", _this->name), &_this->atten, 0, 48, 6, SmGui::FMT_STR_FLOAT_DB_NO_DECIMAL)) {
             if (_this->running) {
                 airspyhf_set_hf_att(_this->openDev, _this->atten / 6.0f);
             }
@@ -330,18 +331,18 @@ private:
                 config.conf["devices"][_this->selectedSerStr]["attenuation"] = _this->atten;
                 config.release(true);
             }
-        }   
+        }
 
-        if (ImGui::Checkbox(CONCAT("HF LNA##_airspyhf_lna_", _this->name), &_this->hfLNA)) {
+        if (SmGui::Checkbox(CONCAT("HF LNA##_airspyhf_lna_", _this->name), &_this->hfLNA)) {
             if (_this->running) {
                 airspyhf_set_hf_lna(_this->openDev, _this->hfLNA);
-            }      
+            }
             if (_this->selectedSerStr != "") {
                 config.acquire();
                 config.conf["devices"][_this->selectedSerStr]["lna"] = _this->hfLNA;
                 config.release(true);
             }
-        }     
+        }
     }
 
     static int callback(airspyhf_transfer_t* transfer) {

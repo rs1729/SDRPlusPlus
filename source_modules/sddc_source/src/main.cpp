@@ -12,7 +12,7 @@
 
 #define CONCAT(a, b) ((std::string(a) + b).c_str())
 
-SDRPP_MOD_INFO {
+SDRPP_MOD_INFO{
     /* Name:            */ "sddc_source",
     /* Description:     */ "SDDC source module for SDR++",
     /* Author:          */ "Ryzerth;pkuznetsov",
@@ -28,6 +28,8 @@ class AirspyHFSourceModule : public ModuleManager::Instance {
 public:
     AirspyHFSourceModule(std::string name) {
         this->name = name;
+
+        if (options::opts.serverMode) { return; }
 
         sampleRate = 768000.0;
 
@@ -142,7 +144,7 @@ private:
         AirspyHFSourceModule* _this = (AirspyHFSourceModule*)ctx;
         spdlog::info("AirspyHFSourceModule '{0}': Menu Deselect!", _this->name);
     }
-    
+
     static void start(void* ctx) {
         AirspyHFSourceModule* _this = (AirspyHFSourceModule*)ctx;
         if (_this->running) { return; }
@@ -153,19 +155,19 @@ private:
         _this->running = true;
         spdlog::info("AirspyHFSourceModule '{0}': Start!", _this->name);
     }
-    
+
     static void stop(void* ctx) {
         AirspyHFSourceModule* _this = (AirspyHFSourceModule*)ctx;
         if (!_this->running) { return; }
         _this->running = false;
         _this->stream.stopWriter();
-        
+
         // Stop device
 
         _this->stream.clearWriteStop();
         spdlog::info("AirspyHFSourceModule '{0}': Stop!", _this->name);
     }
-    
+
     static void tune(double freq, void* ctx) {
         AirspyHFSourceModule* _this = (AirspyHFSourceModule*)ctx;
         if (_this->running) {
@@ -174,7 +176,7 @@ private:
         _this->freq = freq;
         spdlog::info("AirspyHFSourceModule '{0}': Tune: {1}!", _this->name, freq);
     }
-    
+
     static void menuHandler(void* ctx) {
         AirspyHFSourceModule* _this = (AirspyHFSourceModule*)ctx;
         float menuWidth = ImGui::GetContentRegionAvailWidth();
@@ -202,7 +204,6 @@ private:
         if (_this->running) { style::endDisabled(); }
 
         // All other controls
-
     }
 
     std::string name;

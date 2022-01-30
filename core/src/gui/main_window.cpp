@@ -4,7 +4,6 @@
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
 #include <stdio.h>
-#include <GL/glew.h>
 #include <GLFW/glfw3.h>
 #include <thread>
 #include <complex>
@@ -46,35 +45,51 @@ void MainWindow::init() {
     std::string resourcesDir = core::configManager.conf["resourcesDirectory"];
     core::configManager.release();
 
+    // Assert that directories are absolute
+    modulesDir = std::filesystem::absolute(modulesDir).string();
+    resourcesDir = std::filesystem::absolute(resourcesDir).string();
+
     // Load menu elements
     gui::menu.order.clear();
     for (auto& elem : menuElements) {
-        if (!elem.contains("name")) { spdlog::error("Menu element is missing name key"); continue; }
-        if (!elem["name"].is_string()) { spdlog::error("Menu element name isn't a string"); continue; }
-        if (!elem.contains("open")) { spdlog::error("Menu element is missing open key"); continue; }
-        if (!elem["open"].is_boolean()) { spdlog::error("Menu element name isn't a string"); continue; }
+        if (!elem.contains("name")) {
+            spdlog::error("Menu element is missing name key");
+            continue;
+        }
+        if (!elem["name"].is_string()) {
+            spdlog::error("Menu element name isn't a string");
+            continue;
+        }
+        if (!elem.contains("open")) {
+            spdlog::error("Menu element is missing open key");
+            continue;
+        }
+        if (!elem["open"].is_boolean()) {
+            spdlog::error("Menu element name isn't a string");
+            continue;
+        }
         Menu::MenuOption_t opt;
         opt.name = elem["name"];
         opt.open = elem["open"];
         gui::menu.order.push_back(opt);
     }
 
-    gui::menu.registerEntry("Source", sourecmenu::draw, NULL);
+    gui::menu.registerEntry("Source", sourcemenu::draw, NULL);
     gui::menu.registerEntry("Sinks", sinkmenu::draw, NULL);
     gui::menu.registerEntry("Band Plan", bandplanmenu::draw, NULL);
     gui::menu.registerEntry("Display", displaymenu::draw, NULL);
     gui::menu.registerEntry("Theme", thememenu::draw, NULL);
     gui::menu.registerEntry("VFO Color", vfo_color_menu::draw, NULL);
     gui::menu.registerEntry("Module Manager", module_manager_menu::draw, NULL);
-    
+
     gui::freqSelect.init();
 
     // Set default values for waterfall in case no source init's it
     gui::waterfall.setBandwidth(8000000);
     gui::waterfall.setViewBandwidth(8000000);
-    
-    fft_in = (fftwf_complex*) fftwf_malloc(sizeof(fftwf_complex) * fftSize);
-    fft_out = (fftwf_complex*) fftwf_malloc(sizeof(fftwf_complex) * fftSize);
+
+    fft_in = (fftwf_complex*)fftwf_malloc(sizeof(fftwf_complex) * fftSize);
+    fft_out = (fftwf_complex*)fftwf_malloc(sizeof(fftwf_complex) * fftSize);
     fftwPlan = fftwf_plan_dft_1d(fftSize, fft_in, fft_out, FFTW_FORWARD, FFTW_ESTIMATE);
 
     sigpath::signalPath.init(8000000, 20, fftSize, &dummyStream, (dsp::complex_t*)fft_in, fftHandler, this);
@@ -88,14 +103,14 @@ void MainWindow::init() {
 
     // Load modules from /module directory
     if (std::filesystem::is_directory(modulesDir)) {
-        for (const auto & file : std::filesystem::directory_iterator(modulesDir)) {
+        for (const auto& file : std::filesystem::directory_iterator(modulesDir)) {
             std::string path = file.path().generic_string();
             if (file.path().extension().generic_string() != SDRPP_MOD_EXTENTSION) {
                 continue;
             }
             if (!file.is_regular_file()) { continue; }
             spdlog::info("Loading {0}", path);
-            LoadingScreen::show("Loading " + path);
+            LoadingScreen::show("Loading " + file.path().filename().string());
             core::moduleManager.loadModule(path);
         }
     }
@@ -111,9 +126,10 @@ void MainWindow::init() {
 
     // Load additional modules specified through config
     for (auto const& path : modules) {
-        spdlog::info("Loading {0}", path);
-        LoadingScreen::show("Loading " + path);
-        core::moduleManager.loadModule(path);
+        std::string apath = std::filesystem::absolute(path).string();
+        spdlog::info("Loading {0}", apath);
+        LoadingScreen::show("Loading " + std::filesystem::path(path).filename().string());
+        core::moduleManager.loadModule(apath);
     }
 
     // Create module instances
@@ -130,9 +146,9 @@ void MainWindow::init() {
     LoadingScreen::show("Loading color maps");
     spdlog::info("Loading color maps");
     if (std::filesystem::is_directory(resourcesDir + "/colormaps")) {
-        for (const auto & file : std::filesystem::directory_iterator(resourcesDir + "/colormaps")) {
+        for (const auto& file : std::filesystem::directory_iterator(resourcesDir + "/colormaps")) {
             std::string path = file.path().generic_string();
-            LoadingScreen::show("Loading " + path);
+            LoadingScreen::show("Loading " + file.path().filename().string());
             spdlog::info("Loading {0}", path);
             if (file.path().extension().generic_string() != ".json") {
                 continue;
@@ -147,7 +163,7 @@ void MainWindow::init() {
 
     gui::waterfall.updatePalletteFromArray(colormaps::maps["Turbo"].map, colormaps::maps["Turbo"].entryCount);
 
-    sourecmenu::init();
+    sourcemenu::init();
     sinkmenu::init();
     bandplanmenu::init();
     displaymenu::init();
@@ -196,11 +212,11 @@ void MainWindow::init() {
     float finalBwHalf = gui::waterfall.getBandwidth() / 2.0;
     for (auto& [_name, _vfo] : gui::waterfall.vfos) {
         if (_vfo->lowerOffset < -finalBwHalf) {
-            sigpath::vfoManager.setCenterOffset(_name, (_vfo->bandwidth/2)-finalBwHalf);
+            sigpath::vfoManager.setCenterOffset(_name, (_vfo->bandwidth / 2) - finalBwHalf);
             continue;
         }
         if (_vfo->upperOffset > finalBwHalf) {
-            sigpath::vfoManager.setCenterOffset(_name, finalBwHalf-(_vfo->bandwidth/2));
+            sigpath::vfoManager.setCenterOffset(_name, finalBwHalf - (_vfo->bandwidth / 2));
             continue;
         }
     }
@@ -224,8 +240,8 @@ void MainWindow::fftHandler(dsp::complex_t* samples, int count, void* ctx) {
 
     // Zero out the rest of the samples
     if (count < _this->fftSize) {
-        memset(&_this->fft_in[count], 0, (_this->fftSize-count) * sizeof(dsp::complex_t));
-    } 
+        memset(&_this->fft_in[count], 0, (_this->fftSize - count) * sizeof(dsp::complex_t));
+    }
 
     // Execute FFT
     fftwf_execute(_this->fftwPlan);
@@ -258,14 +274,12 @@ void MainWindow::vfoAddedHandler(VFOManager::VFO* vfo, void* ctx) {
     double viewBW = gui::waterfall.getViewBandwidth();
     double viewOffset = gui::waterfall.getViewOffset();
 
-    double viewLower = viewOffset - (viewBW/2.0);
-    double viewUpper = viewOffset + (viewBW/2.0);
+    double viewLower = viewOffset - (viewBW / 2.0);
+    double viewUpper = viewOffset + (viewBW / 2.0);
 
     double newOffset = std::clamp<double>(offset, viewLower, viewUpper);
 
     sigpath::vfoManager.setCenterOffset(name, _this->initComplete ? newOffset : offset);
-
-    
 }
 
 void MainWindow::draw() {
@@ -289,7 +303,7 @@ void MainWindow::draw() {
             core::configManager.release(true);
         }
     }
-    
+
     sigpath::vfoManager.updateFromWaterfall(&gui::waterfall);
 
     // Handle selection of another VFO
@@ -338,12 +352,6 @@ void MainWindow::draw() {
         core::configManager.conf["fftHeight"] = fftHeight;
         core::configManager.release(true);
     }
-
-    ImVec2 vMin = ImGui::GetWindowContentRegionMin();
-    ImVec2 vMax = ImGui::GetWindowContentRegionMax();
-
-    int width = vMax.x - vMin.x;
-    int height = vMax.y - vMin.y;
 
     // To Bar
     ImGui::PushID(ImGui::GetID("sdrpp_menu_btn"));
@@ -415,7 +423,7 @@ void MainWindow::draw() {
 
     int snrWidth = std::min<int>(300, ImGui::GetWindowSize().x - ImGui::GetCursorPosX() - 87);
 
-    ImGui::SetCursorPosX(ImGui::GetWindowSize().x - (snrWidth+87));
+    ImGui::SetCursorPosX(ImGui::GetWindowSize().x - (snrWidth + 87));
     ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 5);
     ImGui::SetNextItemWidth(snrWidth);
     ImGui::SNRMeter((vfo != NULL) ? gui::waterfall.selectedVFOSNR : 0);
@@ -456,7 +464,7 @@ void MainWindow::draw() {
         else {
             ImGui::SetMouseCursor(ImGuiMouseCursor_Arrow);
         }
-        if(!down && grabbingMenu) {
+        if (!down && grabbingMenu) {
             grabbingMenu = false;
             menuWidth = newWidth;
             core::configManager.acquire();
@@ -474,7 +482,6 @@ void MainWindow::draw() {
         ImGui::SetColumnWidth(1, winSize.x - menuWidth - 60);
         ImGui::SetColumnWidth(2, 60);
         ImGui::BeginChild("Left Column");
-        float menuColumnWidth = ImGui::GetContentRegionAvailWidth();
 
         if (gui::menu.draw(firstMenuRender)) {
             core::configManager.acquire();
@@ -494,14 +501,14 @@ void MainWindow::draw() {
             core::configManager.release(true);
         }
         if (startedWithMenuClosed) {
-            startedWithMenuClosed = false;  
+            startedWithMenuClosed = false;
         }
         else {
             firstMenuRender = false;
         }
 
-        if(ImGui::CollapsingHeader("Debug")) {
-            ImGui::Text("Frame time: %.3f ms/frame", 1000.0 / ImGui::GetIO().Framerate);
+        if (ImGui::CollapsingHeader("Debug")) {
+            ImGui::Text("Frame time: %.3f ms/frame", ImGui::GetIO().DeltaTime * 1000.0f);
             ImGui::Text("Framerate: %.1f FPS", ImGui::GetIO().Framerate);
             ImGui::Text("Center Frequency: %.0f Hz", gui::waterfall.getCenterFrequency());
             ImGui::Text("Source name: %s", sourceName.c_str());
@@ -511,7 +518,7 @@ void MainWindow::draw() {
             ImGui::Checkbox("Bypass buffering", &sigpath::signalPath.inputBuffer.bypass);
 
             ImGui::Text("Buffering: %d", (sigpath::signalPath.inputBuffer.writeCur - sigpath::signalPath.inputBuffer.readCur + 32) % 32);
-            
+
             if (ImGui::Button("Test Bug")) {
                 spdlog::error("Will this make the software crash?");
             }
@@ -543,7 +550,7 @@ void MainWindow::draw() {
 
     ImGui::BeginChild("Waterfall");
 
-    gui::waterfall.draw();    
+    gui::waterfall.draw();
 
     ImGui::EndChild();
 
@@ -589,16 +596,16 @@ void MainWindow::draw() {
             core::configManager.release(true);
         }
     }
-    
+
     ImGui::NextColumn();
     ImGui::BeginChild("WaterfallControls");
 
     ImGui::SetCursorPosX((ImGui::GetWindowSize().x / 2.0) - (ImGui::CalcTextSize("Zoom").x / 2.0));
-    ImGui::Text("Zoom");
+    ImGui::TextUnformatted("Zoom");
     ImGui::SetCursorPosX((ImGui::GetWindowSize().x / 2.0) - 10);
     if (ImGui::VSliderFloat("##_7_", ImVec2(20.0, 150.0), &bw, 1.0, 0.0, "")) {
         double factor = (double)bw * (double)bw;
-        
+
         // Map 0.0 -> 1.0 to 1000.0 -> bandwidth
         double wfBw = gui::waterfall.getBandwidth();
         double delta = wfBw - 1000.0;
@@ -613,7 +620,7 @@ void MainWindow::draw() {
     ImGui::NewLine();
 
     ImGui::SetCursorPosX((ImGui::GetWindowSize().x / 2.0) - (ImGui::CalcTextSize("Max").x / 2.0));
-    ImGui::Text("Max");
+    ImGui::TextUnformatted("Max");
     ImGui::SetCursorPosX((ImGui::GetWindowSize().x / 2.0) - 10);
     if (ImGui::VSliderFloat("##_8_", ImVec2(20.0, 150.0), &fftMax, 0.0, -160.0f, "")) {
         fftMax = std::max<float>(fftMax, fftMin + 10);
@@ -625,7 +632,7 @@ void MainWindow::draw() {
     ImGui::NewLine();
 
     ImGui::SetCursorPosX((ImGui::GetWindowSize().x / 2.0) - (ImGui::CalcTextSize("Min").x / 2.0));
-    ImGui::Text("Min");
+    ImGui::TextUnformatted("Min");
     ImGui::SetCursorPosX((ImGui::GetWindowSize().x / 2.0) - 10);
     if (ImGui::VSliderFloat("##_9_", ImVec2(20.0, 150.0), &fftMin, 0.0, -160.0f, "")) {
         fftMin = std::min<float>(fftMax - 10, fftMin);
@@ -687,7 +694,7 @@ void MainWindow::setFFTSize(int size) {
     fftwf_destroy_plan(fftwPlan);
     fftwf_free(fft_in);
     fftwf_free(fft_out);
-    
+
     fft_in = (fftwf_complex*)fftwf_malloc(sizeof(fftwf_complex) * fftSize);
     fft_out = (fftwf_complex*)fftwf_malloc(sizeof(fftwf_complex) * fftSize);
     fftwPlan = fftwf_plan_dft_1d(fftSize, fft_in, fft_out, FFTW_FORWARD, FFTW_ESTIMATE);

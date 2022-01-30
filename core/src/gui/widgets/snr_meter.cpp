@@ -11,15 +11,11 @@ namespace ImGui {
         ImGuiWindow* window = GetCurrentWindow();
         ImGuiStyle& style = GImGui->Style;
 
-        float pad = style.FramePadding.y;
-
         ImVec2 min = window->DC.CursorPos;
         ImVec2 size = CalcItemSize(size_arg, CalcItemWidth(), 26);
         ImRect bb(min, min + size);
 
         ImU32 text = ImGui::GetColorU32(ImGuiCol_Text);
-
-        float lineHeight = size.y;
 
         ItemSize(size, style.FramePadding.y);
         if (!ItemAdd(bb, 0)) {
@@ -39,7 +35,7 @@ namespace ImGui {
             window->DrawList->AddLine(min + ImVec2(roundf((float)i * it), 9), min + ImVec2(roundf((float)i * it), 14), text);
             sprintf(buf, "%d", i * 10);
             ImVec2 sz = ImGui::CalcTextSize(buf);
-            window->DrawList->AddText(min + ImVec2(roundf(((float)i * it) - (sz.x/2.0)) + 1, 16), text, buf);
+            window->DrawList->AddText(min + ImVec2(roundf(((float)i * it) - (sz.x / 2.0)) + 1, 16), text, buf);
         }
     }
 }

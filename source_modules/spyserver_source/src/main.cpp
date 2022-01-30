@@ -9,11 +9,12 @@
 #include <config.h>
 #include <options.h>
 #include <gui/widgets/stepped_slider.h>
+#include <gui/smgui.h>
 
 
 #define CONCAT(a, b) ((std::string(a) + b).c_str())
 
-SDRPP_MOD_INFO {
+SDRPP_MOD_INFO{
     /* Name:            */ "spyserver_source",
     /* Description:     */ "SpyServer source module for SDR++",
     /* Author:          */ "Ryzerth",
@@ -29,8 +30,8 @@ const char* deviceTypesStr[] = {
 };
 
 const char* streamFormatStr = "UInt8\0"
-                            "Int16\0"
-                            "Float32\0";
+                              "Int16\0"
+                              "Float32\0";
 
 const SpyServerStreamFormat streamFormats[] = {
     SPYSERVER_STREAM_FORMAT_UINT8,
@@ -116,7 +117,7 @@ private:
         gui::mainWindow.playButtonLocked = false;
         spdlog::info("SpyServerSourceModule '{0}': Menu Deselect!", _this->name);
     }
-    
+
     static void start(void* ctx) {
         SpyServerSourceModule* _this = (SpyServerSourceModule*)ctx;
         if (_this->running) { return; }
@@ -133,17 +134,17 @@ private:
         _this->running = true;
         spdlog::info("SpyServerSourceModule '{0}': Start!", _this->name);
     }
-    
+
     static void stop(void* ctx) {
         SpyServerSourceModule* _this = (SpyServerSourceModule*)ctx;
         if (!_this->running) { return; }
-        
+
         _this->client->stopStream();
 
         _this->running = false;
         spdlog::info("SpyServerSourceModule '{0}': Stop!", _this->name);
     }
-    
+
     static void tune(double freq, void* ctx) {
         SpyServerSourceModule* _this = (SpyServerSourceModule*)ctx;
         if (_this->running) {
@@ -152,32 +153,34 @@ private:
         _this->freq = freq;
         spdlog::info("SpyServerSourceModule '{0}': Tune: {1}!", _this->name, freq);
     }
-    
+
     static void menuHandler(void* ctx) {
         SpyServerSourceModule* _this = (SpyServerSourceModule*)ctx;
-        float menuWidth = ImGui::GetContentRegionAvailWidth();
 
         bool connected = (_this->client && _this->client->isOpen());
         gui::mainWindow.playButtonLocked = !connected;
 
-        if (connected) { style::beginDisabled(); }
-        if (ImGui::InputText(CONCAT("##_spyserver_srv_host_", _this->name), _this->hostname, 1023)) {
+        if (connected) { SmGui::BeginDisabled(); }
+        if (SmGui::InputText(CONCAT("##_spyserver_srv_host_", _this->name), _this->hostname, 1023)) {
             config.acquire();
             config.conf["hostname"] = _this->hostname;
             config.release(true);
         }
-        ImGui::SameLine();
-        ImGui::SetNextItemWidth(menuWidth - ImGui::GetCursorPosX());
-        if (ImGui::InputInt(CONCAT("##_spyserver_srv_port_", _this->name), &_this->port, 0, 0)) {
+        SmGui::SameLine();
+        SmGui::FillWidth();
+        if (SmGui::InputInt(CONCAT("##_spyserver_srv_port_", _this->name), &_this->port, 0, 0)) {
             config.acquire();
             config.conf["port"] = _this->port;
             config.release(true);
         }
-        if (connected) { style::endDisabled(); }
+        if (connected) { SmGui::EndDisabled(); }
 
-        if (_this->running) { style::beginDisabled(); }
-        if (!connected && ImGui::Button("Connect##spyserver_source", ImVec2(menuWidth, 0))) {
+        if (_this->running) { SmGui::BeginDisabled(); }
+        SmGui::FillWidth();
+        SmGui::ForceSync();
+        if (!connected && SmGui::Button("Connect##spyserver_source")) {
             try {
+                if (_this->client) { _this->client.reset(); }
                 _this->client = spyserver::connect(_this->hostname, _this->port, &_this->stream);
 
                 if (!_this->client->waitForDevInfo(3000)) {
@@ -211,7 +214,7 @@ private:
                         _this->sampleRatesTxt += '\0';
                     }
 
-                    _this->srId = std::clamp<int>(_this->srId, 0, _this->sampleRates.size()-1);
+                    _this->srId = std::clamp<int>(_this->srId, 0, _this->sampleRates.size() - 1);
 
                     _this->sampleRate = _this->sampleRates[_this->srId];
                     core::setInputSampleRate(_this->sampleRate);
@@ -222,18 +225,17 @@ private:
                 spdlog::error("Could not connect to spyserver {0}", e.what());
             }
         }
-        else if (connected && ImGui::Button("Disconnect##spyserver_source", ImVec2(menuWidth, 0))) {
+        else if (connected && SmGui::Button("Disconnect##spyserver_source")) {
             _this->client->close();
         }
-        if (_this->running) { style::endDisabled(); }
+        if (_this->running) { SmGui::EndDisabled(); }
 
-        
 
         if (connected) {
             if (_this->running) { style::beginDisabled(); }
-            ImGui::LeftLabel("Samplerate");
-            ImGui::SetNextItemWidth(menuWidth - ImGui::GetCursorPosX());
-            if (ImGui::Combo("##spyserver_source_sr", &_this->srId, _this->sampleRatesTxt.c_str())) {
+            SmGui::LeftLabel("Samplerate");
+            SmGui::FillWidth();
+            if (SmGui::Combo("##spyserver_source_sr", &_this->srId, _this->sampleRatesTxt.c_str())) {
                 _this->sampleRate = _this->sampleRates[_this->srId];
                 core::setInputSampleRate(_this->sampleRate);
                 config.acquire();
@@ -242,21 +244,21 @@ private:
             }
             if (_this->running) { style::endDisabled(); }
 
-            ImGui::LeftLabel("Sample bit depth");
-            ImGui::SetNextItemWidth(menuWidth - ImGui::GetCursorPosX());
-            if (ImGui::Combo("##spyserver_source_type", &_this->iqType, streamFormatStr)) {
+            SmGui::LeftLabel("Sample bit depth");
+            SmGui::FillWidth();
+            if (SmGui::Combo("##spyserver_source_type", &_this->iqType, streamFormatStr)) {
                 int srvBits = streamFormatsBitCount[_this->iqType];
                 _this->client->setSetting(SPYSERVER_SETTING_IQ_FORMAT, streamFormats[_this->iqType]);
                 _this->client->setSetting(SPYSERVER_SETTING_IQ_DIGITAL_GAIN, _this->client->computeDigitalGain(srvBits, _this->gain, _this->srId + _this->client->devInfo.MinimumIQDecimation));
-                
+
                 config.acquire();
                 config.conf["devices"][_this->devRef]["sampleBitDepthId"] = _this->iqType;
                 config.release(true);
             }
 
             if (_this->client->devInfo.MaximumGainIndex) {
-                ImGui::SetNextItemWidth(menuWidth);
-                if (ImGui::SliderInt("##spyserver_source_gain", (int*)&_this->gain, 0, _this->client->devInfo.MaximumGainIndex)) {
+                SmGui::FillWidth();
+                if (SmGui::SliderInt("##spyserver_source_gain", (int*)&_this->gain, 0, _this->client->devInfo.MaximumGainIndex)) {
                     int srvBits = streamFormatsBitCount[_this->iqType];
                     _this->client->setSetting(SPYSERVER_SETTING_GAIN, _this->gain);
                     _this->client->setSetting(SPYSERVER_SETTING_IQ_DIGITAL_GAIN, _this->client->computeDigitalGain(srvBits, _this->gain, _this->srId + _this->client->devInfo.MinimumIQDecimation));
@@ -266,14 +268,14 @@ private:
                 }
             }
 
-            ImGui::Text("Status:");
-            ImGui::SameLine();
+            SmGui::Text("Status:");
+            SmGui::SameLine();
             ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "Connected (%s)", deviceTypesStr[_this->client->devInfo.DeviceType]);
         }
         else {
-            ImGui::Text("Status:");
-            ImGui::SameLine();
-            ImGui::Text("Not connected");
+            SmGui::Text("Status:");
+            SmGui::SameLine();
+            SmGui::Text("Not connected");
         }
     }
 

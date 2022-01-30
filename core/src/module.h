@@ -15,17 +15,17 @@
 #endif
 
 #ifdef _WIN32
-    #include <Windows.h>
-    #define MOD_EXPORT extern "C" __declspec(dllexport)
-    #define SDRPP_MOD_EXTENTSION    ".dll"
+#include <Windows.h>
+#define MOD_EXPORT           extern "C" __declspec(dllexport)
+#define SDRPP_MOD_EXTENTSION ".dll"
 #else
-    #include <dlfcn.h>
-    #define MOD_EXPORT extern "C"
-    #ifdef __APPLE__
-        #define SDRPP_MOD_EXTENTSION    ".dylib"
-    #else
-        #define SDRPP_MOD_EXTENTSION    ".so"
-    #endif
+#include <dlfcn.h>
+#define MOD_EXPORT extern "C"
+#ifdef __APPLE__
+#define SDRPP_MOD_EXTENTSION ".dylib"
+#else
+#define SDRPP_MOD_EXTENTSION ".so"
+#endif
 #endif
 
 class ModuleManager {
@@ -78,12 +78,12 @@ public:
 
     ModuleManager::Module_t loadModule(std::string path);
 
-    void createInstance(std::string name, std::string module);
-    void deleteInstance(std::string name);
-    void deleteInstance(ModuleManager::Instance* instance);
+    int createInstance(std::string name, std::string module);
+    int deleteInstance(std::string name);
+    int deleteInstance(ModuleManager::Instance* instance);
 
-    void enableInstance(std::string name);
-    void disableInstance(std::string name);
+    int enableInstance(std::string name);
+    int disableInstance(std::string name);
     bool instanceEnabled(std::string name);
     void postInit(std::string name);
     std::string getInstanceModuleName(std::string name);
@@ -98,7 +98,6 @@ public:
 
     std::map<std::string, ModuleManager::Module_t> modules;
     std::map<std::string, ModuleManager::Instance_t> instances;
-
 };
 
-#define SDRPP_MOD_INFO    MOD_EXPORT const ModuleManager::ModuleInfo_t _INFO_
+#define SDRPP_MOD_INFO MOD_EXPORT const ModuleManager::ModuleInfo_t _INFO_

@@ -1,5 +1,6 @@
 #include <utils/networking.h>
 #include <assert.h>
+#include <spdlog/spdlog.h>
 
 namespace net {
 
@@ -15,7 +16,7 @@ namespace net {
         readWorkerThread = std::thread(&ConnClass::readWorker, this);
         writeWorkerThread = std::thread(&ConnClass::writeWorker, this);
     }
-    
+
     ConnClass::~ConnClass() {
         ConnClass::close();
     }
@@ -28,7 +29,7 @@ namespace net {
             std::lock_guard lck2(writeQueueMtx);
             stopWorkers = true;
         }
-        
+
         // Notify the workers of the change
         readQueueCnd.notify_all();
         writeQueueCnd.notify_all();
@@ -59,10 +60,10 @@ namespace net {
 
     void ConnClass::waitForEnd() {
         std::unique_lock lck(readQueueMtx);
-        connectionOpenCnd.wait(lck, [this](){ return !connectionOpen; });
+        connectionOpenCnd.wait(lck, [this]() { return !connectionOpen; });
     }
 
-    int ConnClass::read(int count, uint8_t* buf) {
+    int ConnClass::read(int count, uint8_t* buf, bool enforceSize) {
         if (!connectionOpen) { return -1; }
         std::lock_guard lck(readMtx);
         int ret;
@@ -70,19 +71,36 @@ namespace net {
         if (_udp) {
             socklen_t fromLen = sizeof(remoteAddr);
             ret = recvfrom(_sock, (char*)buf, count, 0, (struct sockaddr*)&remoteAddr, &fromLen);
-        }
-        else {
-            ret = recv(_sock, (char*)buf, count, 0);
+            if (ret <= 0) {
+                {
+                    std::lock_guard lck(connectionOpenMtx);
+                    connectionOpen = false;
+                }
+                connectionOpenCnd.notify_all();
+                return -1;
+            }
+            return count;
         }
 
-        if (ret <= 0) {
-            {
-                std::lock_guard lck(connectionOpenMtx);
-                connectionOpen = false;
+        int beenRead = 0;
+        while (beenRead < count) {
+            ret = recv(_sock, (char*)&buf[beenRead], count - beenRead, 0);
+
+            if (ret <= 0) {
+                {
+                    std::lock_guard lck(connectionOpenMtx);
+                    connectionOpen = false;
+                }
+                connectionOpenCnd.notify_all();
+                return -1;
             }
-            connectionOpenCnd.notify_all();
+
+            if (!enforceSize) { return ret; }
+
+            beenRead += ret;
         }
-        return ret;
+
+        return beenRead;
     }
 
     bool ConnClass::write(int count, uint8_t* buf) {
@@ -91,24 +109,35 @@ namespace net {
         int ret;
 
         if (_udp) {
-            int fromLen = sizeof(remoteAddr);
             ret = sendto(_sock, (char*)buf, count, 0, (struct sockaddr*)&remoteAddr, sizeof(remoteAddr));
-        }
-        else {
-            ret = send(_sock, (char*)buf, count, 0);
+            if (ret <= 0) {
+                {
+                    std::lock_guard lck(connectionOpenMtx);
+                    connectionOpen = false;
+                }
+                connectionOpenCnd.notify_all();
+            }
+            return (ret > 0);
         }
 
-        if (ret <= 0) {
-            {
-                std::lock_guard lck(connectionOpenMtx);
-                connectionOpen = false;
+        int beenWritten = 0;
+        while (beenWritten < count) {
+            ret = send(_sock, (char*)buf, count, 0);
+            if (ret <= 0) {
+                {
+                    std::lock_guard lck(connectionOpenMtx);
+                    connectionOpen = false;
+                }
+                connectionOpenCnd.notify_all();
+                return false;
             }
-            connectionOpenCnd.notify_all();
+            beenWritten += ret;
         }
-        return (ret > 0);
+        
+        return true;
     }
 
-    void ConnClass::readAsync(int count, uint8_t* buf, void (*handler)(int count, uint8_t* buf, void* ctx), void* ctx) {
+    void ConnClass::readAsync(int count, uint8_t* buf, void (*handler)(int count, uint8_t* buf, void* ctx), void* ctx, bool enforceSize) {
         if (!connectionOpen) { return; }
         // Create entry
         ConnReadEntry entry;
@@ -116,6 +145,7 @@ namespace net {
         entry.buf = buf;
         entry.handler = handler;
         entry.ctx = ctx;
+        entry.enforceSize = enforceSize;
 
         // Add entry to queue
         {
@@ -148,7 +178,7 @@ namespace net {
         while (true) {
             // Wait for wakeup and exit if it's for terminating the thread
             std::unique_lock lck(readQueueMtx);
-            readQueueCnd.wait(lck, [this](){ return (readQueue.size() > 0 || stopWorkers); });
+            readQueueCnd.wait(lck, [this]() { return (readQueue.size() > 0 || stopWorkers); });
             if (stopWorkers || !connectionOpen) { return; }
 
             // Pop first element off the list
@@ -157,7 +187,7 @@ namespace net {
             lck.unlock();
 
             // Read from socket and send data to the handler
-            int ret = read(entry.count, entry.buf);
+            int ret = read(entry.count, entry.buf, entry.enforceSize);
             if (ret <= 0) {
                 {
                     std::lock_guard lck(connectionOpenMtx);
@@ -174,7 +204,7 @@ namespace net {
         while (true) {
             // Wait for wakeup and exit if it's for terminating the thread
             std::unique_lock lck(writeQueueMtx);
-            writeQueueCnd.wait(lck, [this](){ return (writeQueue.size() > 0 || stopWorkers); });
+            writeQueueCnd.wait(lck, [this]() { return (writeQueue.size() > 0 || stopWorkers); });
             if (stopWorkers || !connectionOpen) { return; }
 
             // Pop first element off the list
@@ -261,7 +291,6 @@ namespace net {
         if (acceptWorkerThread.joinable()) { acceptWorkerThread.join(); }
 
 
-
         listening = false;
     }
 
@@ -273,7 +302,7 @@ namespace net {
         while (true) {
             // Wait for wakeup and exit if it's for terminating the thread
             std::unique_lock lck(acceptQueueMtx);
-            acceptQueueCnd.wait(lck, [this](){ return (acceptQueue.size() > 0 || stopWorker); });
+            acceptQueueCnd.wait(lck, [this]() { return (acceptQueue.size() > 0 || stopWorker); });
             if (stopWorker || !listening) { return; }
 
             // Pop first element off the list
@@ -299,13 +328,13 @@ namespace net {
 
 
     Conn connect(std::string host, uint16_t port) {
-    Socket sock;
+        Socket sock;
 
 #ifdef _WIN32
         // Initialize WinSock2
         if (!winsock_init) {
             WSADATA wsa;
-            if (WSAStartup(MAKEWORD(2,2),&wsa)) {
+            if (WSAStartup(MAKEWORD(2, 2), &wsa)) {
                 throw std::runtime_error("Could not initialize WinSock2");
                 return NULL;
             }
@@ -330,12 +359,12 @@ namespace net {
             return NULL;
         }
         uint32_t* naddr = (uint32_t*)remoteHost->h_addr_list[0];
-        
+
         // Create host address
         struct sockaddr_in addr;
         addr.sin_addr.s_addr = *naddr;
         addr.sin_family = AF_INET;
-	    addr.sin_port = htons(port);
+        addr.sin_port = htons(port);
 
         // Connect to host
         if (::connect(sock, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
@@ -353,7 +382,7 @@ namespace net {
         // Initialize WinSock2
         if (!winsock_init) {
             WSADATA wsa;
-            if (WSAStartup(MAKEWORD(2,2),&wsa)) {
+            if (WSAStartup(MAKEWORD(2, 2), &wsa)) {
                 throw std::runtime_error("Could not initialize WinSock2");
                 return NULL;
             }
@@ -372,14 +401,14 @@ namespace net {
         }
 
 #ifndef _WIN32
-        // Allow port reusing if the app was killed or crashed 
+        // Allow port reusing if the app was killed or crashed
         // and the socket is stuck in TIME_WAIT state.
-        // This option has a different meaning on Windows, 
+        // This option has a different meaning on Windows,
         // so we use it only for non-Windows systems
         int enable = 1;
-        if (setsockopt(listenSock, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof (int)) < 0) {
+        if (setsockopt(listenSock, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int)) < 0) {
             throw std::runtime_error("Could not configure socket");
-            return NULL;            
+            return NULL;
         }
 #endif
 
@@ -395,7 +424,7 @@ namespace net {
         struct sockaddr_in addr;
         addr.sin_addr.s_addr = *naddr;
         addr.sin_family = AF_INET;
-	    addr.sin_port = htons(port);
+        addr.sin_port = htons(port);
 
         // Bind socket
         if (bind(listenSock, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
@@ -419,7 +448,7 @@ namespace net {
         // Initialize WinSock2
         if (!winsock_init) {
             WSADATA wsa;
-            if (WSAStartup(MAKEWORD(2,2),&wsa)) {
+            if (WSAStartup(MAKEWORD(2, 2), &wsa)) {
                 throw std::runtime_error("Could not initialize WinSock2");
                 return NULL;
             }
@@ -443,7 +472,6 @@ namespace net {
             throw std::runtime_error("Could get address from host");
             return NULL;
         }
-        uint32_t* naddr = (uint32_t*)_host->h_addr_list[0];
 
         // Get address from remote hostname/ip
         hostent* _remoteHost = gethostbyname(remoteHost.c_str());
@@ -455,15 +483,15 @@ namespace net {
 
         // Create host address
         struct sockaddr_in addr;
-        addr.sin_addr.s_addr = INADDR_ANY;//*naddr;
+        addr.sin_addr.s_addr = INADDR_ANY; //*naddr;
         addr.sin_family = AF_INET;
-	    addr.sin_port = htons(port);
+        addr.sin_port = htons(port);
 
         // Create remote host address
         struct sockaddr_in raddr;
         raddr.sin_addr.s_addr = *rnaddr;
         raddr.sin_family = AF_INET;
-	    raddr.sin_port = htons(remotePort);
+        raddr.sin_port = htons(remotePort);
 
         // Bind socket
         if (bindSocket) {
@@ -473,7 +501,7 @@ namespace net {
                 return NULL;
             }
         }
-        
+
         return Conn(new ConnClass(sock, raddr, true));
     }
 }

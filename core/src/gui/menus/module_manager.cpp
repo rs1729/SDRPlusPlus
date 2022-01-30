@@ -3,13 +3,17 @@
 #include <core.h>
 #include <string.h>
 #include <gui/style.h>
+#include <gui/dialogs/dialog_box.h>
 
 namespace module_manager_menu {
     char modName[1024];
     std::vector<std::string> modTypes;
-    std::vector<std::string> toBeRemoved;
+    std::string toBeRemoved;
     std::string modTypesTxt;
+    std::string errorMessage;
     int modTypeId;
+    bool confirmOpened = false;
+    bool errorOpen = false;
 
     void init() {
         modName[0] = 0;
@@ -35,34 +39,38 @@ namespace module_manager_menu {
 
             float height = ImGui::CalcTextSize("-").y;
 
-            toBeRemoved.clear();
-
             for (auto& [name, inst] : core::moduleManager.instances) {
                 ImGui::TableNextRow();
 
                 ImGui::TableSetColumnIndex(0);
-                ImGui::Text(name.c_str());
+                ImGui::TextUnformatted(name.c_str());
 
                 ImGui::TableSetColumnIndex(1);
-                ImGui::Text(inst.module.info->name);
+                ImGui::TextUnformatted(inst.module.info->name);
 
                 ImGui::TableSetColumnIndex(2);
                 ImVec2 origPos = ImGui::GetCursorPos();
                 ImGui::SetCursorPos(ImVec2(origPos.x - 3, origPos.y));
-                if (ImGui::Button(("##module_mgr_"+name).c_str(), ImVec2(height,height))) {
-                    toBeRemoved.push_back(name);
-                    modified = true;
+                if (ImGui::Button(("##module_mgr_" + name).c_str(), ImVec2(height, height))) {
+                    toBeRemoved = name;
+                    confirmOpened = true;
                 }
                 ImGui::SetCursorPos(ImVec2(origPos.x + 2, origPos.y - 5));
-                ImGui::Text("_");
+                ImGui::TextUnformatted("_");
             }
             ImGui::EndTable();
-
-            for (auto& rem : toBeRemoved) {
-                core::moduleManager.deleteInstance(rem);
-            }
         }
-       
+
+        if (ImGui::GenericDialog("module_mgr_confirm_", confirmOpened, GENERIC_DIALOG_BUTTONS_YES_NO, []() {
+                ImGui::Text("Deleting \"%s\". Are you sure?", toBeRemoved.c_str());
+            }) == GENERIC_DIALOG_BUTTON_YES) {
+            core::moduleManager.deleteInstance(toBeRemoved);
+            modified = true;
+        }
+
+        ImGui::GenericDialog("module_mgr_error_", errorOpen, GENERIC_DIALOG_BUTTONS_OK, []() {
+            ImGui::TextUnformatted(errorMessage.c_str());
+        });
 
         // Add module row with slightly different settings
         ImGui::BeginTable("Module Manager Add Table", 3);
@@ -81,10 +89,15 @@ namespace module_manager_menu {
 
         ImGui::TableSetColumnIndex(2);
         if (strlen(modName) == 0) { style::beginDisabled(); }
-        if (ImGui::Button("+##module_mgr_add_btn", ImVec2(16,0))) {
-            core::moduleManager.createInstance(modName, modTypes[modTypeId]);
-            core::moduleManager.postInit(modName);
-            modified = true;
+        if (ImGui::Button("+##module_mgr_add_btn", ImVec2(16, 0))) {
+            if (!core::moduleManager.createInstance(modName, modTypes[modTypeId])) {
+                core::moduleManager.postInit(modName);
+                modified = true;
+            }
+            else {
+                errorMessage = "Could not create new instance of " + modTypes[modTypeId];
+                errorOpen = true;
+            }
         }
         if (strlen(modName) == 0) { style::endDisabled(); }
         ImGui::EndTable();

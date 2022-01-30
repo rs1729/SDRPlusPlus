@@ -1,4 +1,3 @@
-#include <imgui.h>
 #include <spdlog/spdlog.h>
 #include <module.h>
 #include <gui/gui.h>
@@ -9,10 +8,11 @@
 #include <libhackrf/hackrf.h>
 #include <gui/widgets/stepped_slider.h>
 #include <options.h>
+#include <gui/smgui.h>
 
 #define CONCAT(a, b) ((std::string(a) + b).c_str())
 
-SDRPP_MOD_INFO {
+SDRPP_MOD_INFO{
     /* Name:            */ "hackrf_source",
     /* Description:     */ "HackRF source module for SDR++",
     /* Author:          */ "Ryzerth",
@@ -38,21 +38,21 @@ const int sampleRates[] = {
 
 const int bandwidths[] = {
     1750000,
-	2500000,
-	3500000,
-	5000000,
-	5500000,
-	6000000,
-	7000000,
-	8000000,
-	9000000,
-	10000000,
-	12000000,
-	14000000,
-	15000000,
-	20000000,
-	24000000,
-	28000000,
+    2500000,
+    3500000,
+    5000000,
+    5500000,
+    6000000,
+    7000000,
+    8000000,
+    9000000,
+    10000000,
+    12000000,
+    14000000,
+    15000000,
+    20000000,
+    24000000,
+    28000000,
 };
 
 const char* bandwidthsTxt = "1.75MHz\0"
@@ -220,7 +220,7 @@ private:
         if (id == 16) { return hackrf_compute_baseband_filter_bw(sampleRate); }
         return bandwidths[id];
     }
-    
+
     static void start(void* ctx) {
         HackRFSourceModule* _this = (HackRFSourceModule*)ctx;
         if (_this->running) { return; }
@@ -249,7 +249,7 @@ private:
         _this->running = true;
         spdlog::info("HackRFSourceModule '{0}': Start!", _this->name);
     }
-    
+
     static void stop(void* ctx) {
         HackRFSourceModule* _this = (HackRFSourceModule*)ctx;
         if (!_this->running) { return; }
@@ -263,7 +263,7 @@ private:
         _this->stream.clearWriteStop();
         spdlog::info("HackRFSourceModule '{0}': Stop!", _this->name);
     }
-    
+
     static void tune(double freq, void* ctx) {
         HackRFSourceModule* _this = (HackRFSourceModule*)ctx;
         if (_this->running) {
@@ -272,22 +272,21 @@ private:
         _this->freq = freq;
         spdlog::info("HackRFSourceModule '{0}': Tune: {1}!", _this->name, freq);
     }
-    
+
     static void menuHandler(void* ctx) {
         HackRFSourceModule* _this = (HackRFSourceModule*)ctx;
-        float menuWidth = ImGui::GetContentRegionAvailWidth();
 
-        if (_this->running) { style::beginDisabled(); }
-
-        ImGui::SetNextItemWidth(menuWidth);
-        if (ImGui::Combo(CONCAT("##_hackrf_dev_sel_", _this->name), &_this->devId, _this->devListTxt.c_str())) {
-            _this->selectedSerial = _this->devList[_this->devId];
+        if (_this->running) { SmGui::BeginDisabled(); }
+        SmGui::FillWidth();
+        SmGui::ForceSync();
+        if (SmGui::Combo(CONCAT("##_hackrf_dev_sel_", _this->name), &_this->devId, _this->devListTxt.c_str())) {
+            _this->selectBySerial(_this->devList[_this->devId]);
             config.acquire();
             config.conf["device"] = _this->selectedSerial;
             config.release(true);
         }
 
-        if (ImGui::Combo(CONCAT("##_hackrf_sr_sel_", _this->name), &_this->srId, sampleRatesTxt)) {
+        if (SmGui::Combo(CONCAT("##_hackrf_sr_sel_", _this->name), &_this->srId, sampleRatesTxt)) {
             _this->sampleRate = sampleRates[_this->srId];
             core::setInputSampleRate(_this->sampleRate);
             config.acquire();
@@ -295,19 +294,20 @@ private:
             config.release(true);
         }
 
-        ImGui::SameLine();
-        float refreshBtnWdith = menuWidth - ImGui::GetCursorPosX();
-        if (ImGui::Button(CONCAT("Refresh##_hackrf_refr_", _this->name), ImVec2(refreshBtnWdith, 0))) {
+        SmGui::SameLine();
+        SmGui::FillWidth();
+        SmGui::ForceSync();
+        if (SmGui::Button(CONCAT("Refresh##_hackrf_refr_", _this->name))) {
             _this->refresh();
             _this->selectBySerial(_this->selectedSerial);
-	    core::setInputSampleRate(_this->sampleRate);
+            core::setInputSampleRate(_this->sampleRate);
         }
 
-        if (_this->running) { style::endDisabled(); }
+        if (_this->running) { SmGui::EndDisabled(); }
 
-        ImGui::LeftLabel("Bandwidth");
-        ImGui::SetNextItemWidth(menuWidth - ImGui::GetCursorPosX());
-        if (ImGui::Combo(CONCAT("##_hackrf_bw_sel_", _this->name), &_this->bwId, bandwidthsTxt)) {
+        SmGui::LeftLabel("Bandwidth");
+        SmGui::FillWidth();
+        if (SmGui::Combo(CONCAT("##_hackrf_bw_sel_", _this->name), &_this->bwId, bandwidthsTxt)) {
             if (_this->running) {
                 hackrf_set_baseband_filter_bandwidth(_this->openDev, _this->bandwidthIdToBw(_this->bwId));
             }
@@ -316,9 +316,9 @@ private:
             config.release(true);
         }
 
-        ImGui::LeftLabel("LNA Gain");
-        ImGui::SetNextItemWidth(menuWidth - ImGui::GetCursorPosX());
-        if (ImGui::SliderFloatWithSteps(CONCAT("##_hackrf_lna_", _this->name), &_this->lna, 0, 40, 8, "%.0fdB")) {
+        SmGui::LeftLabel("LNA Gain");
+        SmGui::FillWidth();
+        if (SmGui::SliderFloatWithSteps(CONCAT("##_hackrf_lna_", _this->name), &_this->lna, 0, 40, 8, SmGui::FMT_STR_FLOAT_DB_NO_DECIMAL)) {
             if (_this->running) {
                 hackrf_set_lna_gain(_this->openDev, _this->lna);
             }
@@ -327,18 +327,18 @@ private:
             config.release(true);
         }
 
-        ImGui::LeftLabel("VGA Gain");
-        ImGui::SetNextItemWidth(menuWidth - ImGui::GetCursorPosX());
-        if (ImGui::SliderFloatWithSteps(CONCAT("##_hackrf_vga_", _this->name), &_this->vga, 0, 62, 2, "%.0fdB")) {
+        SmGui::LeftLabel("VGA Gain");
+        SmGui::FillWidth();
+        if (SmGui::SliderFloatWithSteps(CONCAT("##_hackrf_vga_", _this->name), &_this->vga, 0, 62, 2, SmGui::FMT_STR_FLOAT_DB_NO_DECIMAL)) {
             if (_this->running) {
                 hackrf_set_vga_gain(_this->openDev, _this->vga);
             }
             config.acquire();
             config.conf["devices"][_this->selectedSerial]["vgaGain"] = (int)_this->vga;
             config.release(true);
-        }  
+        }
 
-        if (ImGui::Checkbox(CONCAT("Bias-T##_hackrf_bt_", _this->name), &_this->biasT)) {
+        if (SmGui::Checkbox(CONCAT("Bias-T##_hackrf_bt_", _this->name), &_this->biasT)) {
             if (_this->running) {
                 hackrf_set_antenna_enable(_this->openDev, _this->biasT);
             }
@@ -347,21 +347,21 @@ private:
             config.release(true);
         }
 
-        if (ImGui::Checkbox(CONCAT("Amp Enabled##_hackrf_amp_", _this->name), &_this->amp)) {
+        if (SmGui::Checkbox(CONCAT("Amp Enabled##_hackrf_amp_", _this->name), &_this->amp)) {
             if (_this->running) {
                 hackrf_set_amp_enable(_this->openDev, _this->amp);
             }
             config.acquire();
             config.conf["devices"][_this->selectedSerial]["amp"] = _this->amp;
             config.release(true);
-        } 
+        }
     }
 
     static int callback(hackrf_transfer* transfer) {
         HackRFSourceModule* _this = (HackRFSourceModule*)transfer->rx_ctx;
         int count = transfer->valid_length / 2;
         int8_t* buffer = (int8_t*)transfer->buffer;
-        volk_8i_s32f_convert_32f((float*)_this->stream.writeBuf, buffer, 128.0f, count*2);
+        volk_8i_s32f_convert_32f((float*)_this->stream.writeBuf, buffer, 128.0f, count * 2);
         if (!_this->stream.swap(count)) { return -1; }
         return 0;
     }

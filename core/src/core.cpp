@@ -1,8 +1,8 @@
+#include <server.h>
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
 #include <stdio.h>
-#include <GL/glew.h>
 #include <GLFW/glfw3.h>
 #include <gui/main_window.h>
 #include <gui/style.h>
@@ -18,7 +18,6 @@
 #include <options.h>
 #include <filesystem>
 #include <gui/menus/theme.h>
-#include <server.h>
 
 #define STB_IMAGE_RESIZE_IMPLEMENTATION
 #include <stb_image_resize.h>
@@ -30,11 +29,11 @@
 #endif
 
 #ifndef INSTALL_PREFIX
-    #ifdef __APPLE__
-        #define INSTALL_PREFIX "/usr/local"
-    #else 
-        #define INSTALL_PREFIX "/usr"
-    #endif
+#ifdef __APPLE__
+#define INSTALL_PREFIX "/usr/local"
+#else
+#define INSTALL_PREFIX "/usr"
+#endif
 #endif
 
 const char* OPENGL_VERSIONS_GLSL[] = {
@@ -70,6 +69,9 @@ namespace core {
     GLFWwindow* window;
 
     void setInputSampleRate(double samplerate) {
+        // Forward this to the server
+        if (options::opts.serverMode) { server::setInputSampleRate(samplerate); return; }
+        
         sigpath::signalPath.sourceSampleRate = samplerate;
         double effectiveSr = samplerate / ((double)(1 << sigpath::signalPath.decimation));
         // NOTE: Zoom controls won't work
@@ -99,7 +101,7 @@ static void maximized_callback(GLFWwindow* window, int n) {
 }
 
 // main
-int sdrpp_main(int argc, char *argv[]) {
+int sdrpp_main(int argc, char* argv[]) {
     spdlog::info("SDR++ v" VERSION_STR);
 
 #ifdef IS_MACOS_BUNDLE
@@ -119,7 +121,7 @@ int sdrpp_main(int argc, char *argv[]) {
     // Check root directory
     if (!std::filesystem::exists(options::opts.root)) {
         spdlog::warn("Root directory {0} does not exist, creating it", options::opts.root);
-        if (!std::filesystem::create_directory(options::opts.root)) {
+        if (!std::filesystem::create_directories(options::opts.root)) {
             spdlog::error("Could not create root directory {0}", options::opts.root);
             return -1;
         }
@@ -199,12 +201,16 @@ int sdrpp_main(int argc, char *argv[]) {
     defConfig["moduleInstances"]["HackRF Source"]["enabled"] = true;
     defConfig["moduleInstances"]["LimeSDR Source"]["module"] = "limesdr_source";
     defConfig["moduleInstances"]["LimeSDR Source"]["enabled"] = true;
+    defConfig["moduleInstances"]["RFspace Source"]["module"] = "rfspace_source";
+    defConfig["moduleInstances"]["RFspace Source"]["enabled"] = true;
     defConfig["moduleInstances"]["RTL-SDR Source"]["module"] = "rtl_sdr_source";
     defConfig["moduleInstances"]["RTL-SDR Source"]["enabled"] = true;
     defConfig["moduleInstances"]["RTL-TCP Source"]["module"] = "rtl_tcp_source";
     defConfig["moduleInstances"]["RTL-TCP Source"]["enabled"] = true;
     defConfig["moduleInstances"]["SDRplay Source"]["module"] = "sdrplay_source";
     defConfig["moduleInstances"]["SDRplay Source"]["enabled"] = true;
+    defConfig["moduleInstances"]["SDR++ Server Source"]["module"] = "sdrpp_server_source";
+    defConfig["moduleInstances"]["SDR++ Server Source"]["enabled"] = true;
     defConfig["moduleInstances"]["SoapySDR Source"]["module"] = "soapy_source";
     defConfig["moduleInstances"]["SoapySDR Source"]["enabled"] = true;
     defConfig["moduleInstances"]["SpyServer Source"]["module"] = "spyserver_source";
@@ -220,7 +226,7 @@ int sdrpp_main(int argc, char *argv[]) {
     defConfig["moduleInstances"]["Frequency Manager"] = "frequency_manager";
     defConfig["moduleInstances"]["Recorder"] = "recorder";
     defConfig["moduleInstances"]["Rigctl Server"] = "rigctl_server";
-    
+
 
     // Themes
     defConfig["theme"] = "Dark";
@@ -295,7 +301,7 @@ int sdrpp_main(int argc, char *argv[]) {
 
     core::configManager.release(true);
 
-    if (options::opts.serverMode) { return server_main(); }
+    if (options::opts.serverMode) { return server::main(); }
 
     core::configManager.acquire();
     int winWidth = core::configManager.conf["windowSize"]["w"];
@@ -305,6 +311,8 @@ int sdrpp_main(int argc, char *argv[]) {
     json bandColors = core::configManager.conf["bandColors"];
     core::configManager.release();
 
+    // Assert that the resource directory is absolute and check existance
+    resDir = std::filesystem::absolute(resDir).string();
     if (!std::filesystem::is_directory(resDir)) {
         spdlog::error("Resource directory doesn't exist! Please make sure that you've configured it correctly in config.json (check readme for details)");
         return 1;
@@ -321,8 +329,8 @@ int sdrpp_main(int argc, char *argv[]) {
     const char* glsl_version = "#version 150";
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);  // 3.2+ only
-    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);            // Required on Mac
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE); // 3.2+ only
+    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);           // Required on Mac
 
     // Create window with graphics context
     GLFWmonitor* monitor = glfwGetPrimaryMonitor();
@@ -343,14 +351,14 @@ int sdrpp_main(int argc, char *argv[]) {
         monitor = glfwGetPrimaryMonitor();
         core::window = glfwCreateWindow(winWidth, winHeight, "SDR++ v" VERSION_STR " (Built at " __TIME__ ", " __DATE__ ")", NULL, NULL);
         if (core::window == NULL) {
-            spdlog::info("OpenGL {0}.{1} {2}was not supported", OPENGL_VERSIONS_MAJOR[i], OPENGL_VERSIONS_MINOR[i], OPENGL_VERSIONS_IS_ES[i] ? "ES ": "");
+            spdlog::info("OpenGL {0}.{1} {2}was not supported", OPENGL_VERSIONS_MAJOR[i], OPENGL_VERSIONS_MINOR[i], OPENGL_VERSIONS_IS_ES[i] ? "ES " : "");
             continue;
         }
-        spdlog::info("Using OpenGL {0}.{1}{2}", OPENGL_VERSIONS_MAJOR[i], OPENGL_VERSIONS_MINOR[i], OPENGL_VERSIONS_IS_ES[i] ? " ES": "");
+        spdlog::info("Using OpenGL {0}.{1}{2}", OPENGL_VERSIONS_MAJOR[i], OPENGL_VERSIONS_MINOR[i], OPENGL_VERSIONS_IS_ES[i] ? " ES" : "");
         glfwMakeContextCurrent(core::window);
         break;
     }
-    
+
 #endif
 
     // Add callback for max/min if GLFW supports it
@@ -370,15 +378,24 @@ int sdrpp_main(int argc, char *argv[]) {
 
     GLFWimage icons[10];
     icons[0].pixels = stbi_load(((std::string)(resDir + "/icons/sdrpp.png")).c_str(), &icons[0].width, &icons[0].height, 0, 4);
-    icons[1].pixels = (unsigned char*)malloc(16 * 16 * 4); icons[1].width = icons[1].height = 16;
-    icons[2].pixels = (unsigned char*)malloc(24 * 24 * 4); icons[2].width = icons[2].height = 24;
-    icons[3].pixels = (unsigned char*)malloc(32 * 32 * 4); icons[3].width = icons[3].height = 32;
-    icons[4].pixels = (unsigned char*)malloc(48 * 48 * 4); icons[4].width = icons[4].height = 48;
-    icons[5].pixels = (unsigned char*)malloc(64 * 64 * 4); icons[5].width = icons[5].height = 64;
-    icons[6].pixels = (unsigned char*)malloc(96 * 96 * 4); icons[6].width = icons[6].height = 96;
-    icons[7].pixels = (unsigned char*)malloc(128 * 128 * 4); icons[7].width = icons[7].height = 128;
-    icons[8].pixels = (unsigned char*)malloc(196 * 196 * 4); icons[8].width = icons[8].height = 196;
-    icons[9].pixels = (unsigned char*)malloc(256 * 256 * 4); icons[9].width = icons[9].height = 256;
+    icons[1].pixels = (unsigned char*)malloc(16 * 16 * 4);
+    icons[1].width = icons[1].height = 16;
+    icons[2].pixels = (unsigned char*)malloc(24 * 24 * 4);
+    icons[2].width = icons[2].height = 24;
+    icons[3].pixels = (unsigned char*)malloc(32 * 32 * 4);
+    icons[3].width = icons[3].height = 32;
+    icons[4].pixels = (unsigned char*)malloc(48 * 48 * 4);
+    icons[4].width = icons[4].height = 48;
+    icons[5].pixels = (unsigned char*)malloc(64 * 64 * 4);
+    icons[5].width = icons[5].height = 64;
+    icons[6].pixels = (unsigned char*)malloc(96 * 96 * 4);
+    icons[6].width = icons[6].height = 96;
+    icons[7].pixels = (unsigned char*)malloc(128 * 128 * 4);
+    icons[7].width = icons[7].height = 128;
+    icons[8].pixels = (unsigned char*)malloc(196 * 196 * 4);
+    icons[8].width = icons[8].height = 196;
+    icons[9].pixels = (unsigned char*)malloc(256 * 256 * 4);
+    icons[9].width = icons[9].height = 256;
     stbir_resize_uint8(icons[0].pixels, icons[0].width, icons[0].height, icons[0].width * 4, icons[1].pixels, 16, 16, 16 * 4, 4);
     stbir_resize_uint8(icons[0].pixels, icons[0].width, icons[0].height, icons[0].width * 4, icons[2].pixels, 24, 24, 24 * 4, 4);
     stbir_resize_uint8(icons[0].pixels, icons[0].width, icons[0].height, icons[0].width * 4, icons[3].pixels, 32, 32, 32 * 4, 4);
@@ -394,16 +411,11 @@ int sdrpp_main(int argc, char *argv[]) {
         free(icons[i].pixels);
     }
 
-    if (glewInit() != GLEW_OK) {
-        spdlog::error("Failed to initialize OpenGL loader!");
-        return 1;
-    }
-
-
     // Setup Dear ImGui context
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
-    ImGuiIO& io = ImGui::GetIO(); (void)io;
+    ImGuiIO& io = ImGui::GetIO();
+    (void)io;
     io.IniFilename = NULL;
 
     // Setup Platform/Renderer bindings
@@ -445,7 +457,7 @@ int sdrpp_main(int argc, char *argv[]) {
         fsWidth = _winWidth;
         fsHeight = _winHeight;
         glfwGetWindowPos(core::window, &fsPosX, &fsPosY);
-        const GLFWvidmode * mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
+        const GLFWvidmode* mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
         glfwSetWindowMonitor(core::window, monitor, 0, 0, mode->width, mode->height, 0);
     }
 
@@ -467,7 +479,7 @@ int sdrpp_main(int argc, char *argv[]) {
         if (_maximized != maximized) {
             _maximized = maximized;
             core::configManager.acquire();
-            core::configManager.conf["maximized"]= _maximized;
+            core::configManager.conf["maximized"] = _maximized;
             if (!maximized) {
                 glfwSetWindowSize(core::window, core::configManager.conf["windowSize"]["w"], core::configManager.conf["windowSize"]["h"]);
             }
@@ -483,7 +495,7 @@ int sdrpp_main(int argc, char *argv[]) {
                 fsWidth = _winWidth;
                 fsHeight = _winHeight;
                 glfwGetWindowPos(core::window, &fsPosX, &fsPosY);
-                const GLFWvidmode * mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
+                const GLFWvidmode* mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
                 glfwSetWindowMonitor(core::window, monitor, 0, 0, mode->width, mode->height, 0);
                 core::configManager.acquire();
                 core::configManager.conf["fullscreen"] = true;
@@ -491,7 +503,7 @@ int sdrpp_main(int argc, char *argv[]) {
             }
             else {
                 spdlog::info("Fullscreen: OFF");
-                glfwSetWindowMonitor(core::window, nullptr,  fsPosX, fsPosY, fsWidth, fsHeight, 0);
+                glfwSetWindowMonitor(core::window, nullptr, fsPosX, fsPosY, fsWidth, fsHeight, 0);
                 core::configManager.acquire();
                 core::configManager.conf["fullscreen"] = false;
                 core::configManager.release();

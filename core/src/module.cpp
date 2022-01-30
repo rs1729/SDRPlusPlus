@@ -22,10 +22,10 @@ ModuleManager::Module_t ModuleManager::loadModule(std::string path) {
         return mod;
     }
     mod.info = (ModuleInfo_t*)GetProcAddress(mod.handle, "_INFO_");
-    mod.init = (void(*)())GetProcAddress(mod.handle, "_INIT_");
-    mod.createInstance = (Instance*(*)(std::string))GetProcAddress(mod.handle, "_CREATE_INSTANCE_");
-    mod.deleteInstance = (void(*)(Instance*))GetProcAddress(mod.handle, "_DELETE_INSTANCE_");
-    mod.end = (void(*)())GetProcAddress(mod.handle, "_END_");
+    mod.init = (void (*)())GetProcAddress(mod.handle, "_INIT_");
+    mod.createInstance = (Instance * (*)(std::string)) GetProcAddress(mod.handle, "_CREATE_INSTANCE_");
+    mod.deleteInstance = (void (*)(Instance*))GetProcAddress(mod.handle, "_DELETE_INSTANCE_");
+    mod.end = (void (*)())GetProcAddress(mod.handle, "_END_");
 #else
     mod.handle = dlopen(path.c_str(), RTLD_LAZY | RTLD_LOCAL);
     if (mod.handle == NULL) {
@@ -34,10 +34,10 @@ ModuleManager::Module_t ModuleManager::loadModule(std::string path) {
         return mod;
     }
     mod.info = (ModuleInfo_t*)dlsym(mod.handle, "_INFO_");
-    mod.init = (void(*)())dlsym(mod.handle, "_INIT_");
-    mod.createInstance = (Instance*(*)(std::string))dlsym(mod.handle, "_CREATE_INSTANCE_");
-    mod.deleteInstance = (void(*)(Instance*))dlsym(mod.handle, "_DELETE_INSTANCE_");
-    mod.end = (void(*)())dlsym(mod.handle, "_END_");
+    mod.init = (void (*)())dlsym(mod.handle, "_INIT_");
+    mod.createInstance = (Instance * (*)(std::string)) dlsym(mod.handle, "_CREATE_INSTANCE_");
+    mod.deleteInstance = (void (*)(Instance*))dlsym(mod.handle, "_DELETE_INSTANCE_");
+    mod.end = (void (*)())dlsym(mod.handle, "_END_");
 #endif
     if (mod.info == NULL) {
         spdlog::error("{0} is missing _INFO_ symbol", path);
@@ -79,57 +79,62 @@ ModuleManager::Module_t ModuleManager::loadModule(std::string path) {
     return mod;
 }
 
-void ModuleManager::createInstance(std::string name, std::string module) {
+int ModuleManager::createInstance(std::string name, std::string module) {
     if (modules.find(module) == modules.end()) {
         spdlog::error("Module '{0}' doesn't exist", module);
-        return;
+        return -1;
     }
     if (instances.find(name) != instances.end()) {
         spdlog::error("A module instance with the name '{0}' already exists", name);
-        return;
+        return -1;
     }
     int maxCount = modules[module].info->maxInstances;
     if (countModuleInstances(module) >= maxCount && maxCount > 0) {
         spdlog::error("Maximum number of instances reached for '{0}'", module);
-        return;
+        return -1;
     }
     Instance_t inst;
     inst.module = modules[module];
     inst.instance = inst.module.createInstance(name);
     instances[name] = inst;
     onInstanceCreated.emit(name);
+    return 0;
 }
 
-void ModuleManager::deleteInstance(std::string name) {
+int ModuleManager::deleteInstance(std::string name) {
     if (instances.find(name) == instances.end()) {
         spdlog::error("Tried to remove non-existent instance '{0}'", name);
-        return;
+        return -1;
     }
     onInstanceDelete.emit(name);
-    Instance_t inst  = instances[name];
+    Instance_t inst = instances[name];
     inst.module.deleteInstance(inst.instance);
     instances.erase(name);
     onInstanceDeleted.emit(name);
+    return 0;
 }
 
-void ModuleManager::deleteInstance(ModuleManager::Instance* instance) {
+int ModuleManager::deleteInstance(ModuleManager::Instance* instance) {
     spdlog::error("Delete instance not implemented");
+    return -1;
 }
 
-void ModuleManager::enableInstance(std::string name) {
+int ModuleManager::enableInstance(std::string name) {
     if (instances.find(name) == instances.end()) {
         spdlog::error("Cannot enable '{0}', instance doesn't exist", name);
-        return;
+        return -1;
     }
     instances[name].instance->enable();
+    return 0;
 }
 
-void ModuleManager::disableInstance(std::string name) {
+int ModuleManager::disableInstance(std::string name) {
     if (instances.find(name) == instances.end()) {
         spdlog::error("Cannot disable '{0}', instance doesn't exist", name);
-        return;
+        return -1;
     }
     instances[name].instance->disable();
+    return 0;
 }
 
 bool ModuleManager::instanceEnabled(std::string name) {

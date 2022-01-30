@@ -28,7 +28,6 @@ namespace sdrpp_credits {
     const char* libraries[] = {
         "Dear ImGui (ocornut)",
         "fftw3 (fftw.org)",
-        "glew (Nigel Stewart)",
         "glfw (Camilla Löwy)",
         "json (nlohmann)",
         "spdlog (gabime)",
@@ -38,6 +37,7 @@ namespace sdrpp_credits {
     const char* hardwareDonators[] = {
         "Airspy",
         "Analog Devices",
+        "CaribouLabs",
         "Howard Su",
         "MyriadRF",
         "Nuand",
@@ -55,6 +55,7 @@ namespace sdrpp_credits {
         "D. Jones",
         "EB3FRN",
         "Eric Johnson",
+        "Ernest Murphy (NH7L)",
         "Flinger Films",
         "Kezza",
         "Lee Donaghy",

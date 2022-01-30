@@ -4,10 +4,11 @@
 #include <gui/widgets/bandplan.h>
 #include <imgui/imgui.h>
 #include <imgui/imgui_internal.h>
-#include <GL/glew.h>
 #include <utils/event.h>
 
-#define WATERFALL_RESOLUTION    1000000
+#include <utils/opengl_include_code.h>
+
+#define WATERFALL_RESOLUTION 1000000
 
 namespace ImGui {
     class WaterfallVFO {
@@ -17,6 +18,8 @@ namespace ImGui {
         void setBandwidth(double bw);
         void setReference(int ref);
         void setSnapInterval(double interval);
+        void setNotchOffset(double offset);
+        void setNotchVisible(bool visible);
         void updateDrawingVars(double viewBandwidth, float dataWidth, double viewOffset, ImVec2 widgetPos, int fftHeight); // NOTE: Datawidth double???
         void draw(ImGuiWindow* window, bool selected);
 
@@ -34,6 +37,9 @@ namespace ImGui {
         double bandwidth;
         double snapInterval = 5000;
         int reference = REF_CENTER;
+
+        double notchOffset = 0;
+        bool notchVisible = false;
 
         bool leftClamped;
         bool rightClamped;
@@ -54,6 +60,8 @@ namespace ImGui {
         ImVec2 wfLbwSelMax;
         ImVec2 wfRbwSelMin;
         ImVec2 wfRbwSelMax;
+        ImVec2 notchMin;
+        ImVec2 notchMax;
 
         bool centerOffsetChanged = false;
         bool lowerOffsetChanged = false;
@@ -69,6 +77,7 @@ namespace ImGui {
         ImU32 color = IM_COL32(255, 255, 255, 50);
 
         Event<double> onUserChangedBandwidth;
+        Event<double> onUserChangedNotch;
     };
 
     class WaterFall {
@@ -101,9 +110,8 @@ namespace ImGui {
                 float sFactor = ceilf(factor);
                 float uFactor;
                 float id = offset;
-                float val, maxVal;
+                float maxVal;
                 int sId;
-                uint32_t maxId;
                 for (int i = 0; i < outWidth; i++) {
                     maxVal = -INFINITY;
                     sId = (int)id;
@@ -244,7 +252,7 @@ namespace ImGui {
         bool waterfallUpdate = false;
 
         uint32_t waterfallPallet[WATERFALL_RESOLUTION];
-        
+
         ImVec2 widgetPos;
         ImVec2 widgetEndPos;
         ImVec2 widgetSize;
@@ -270,9 +278,9 @@ namespace ImGui {
         int maxVSteps;
         int maxHSteps;
 
-        int dataWidth;              // Width of the FFT and waterfall
-        int fftHeight;              // Height of the fft graph
-        int waterfallHeight = 0;    // Height of the waterfall
+        int dataWidth;           // Width of the FFT and waterfall
+        int fftHeight;           // Height of the fft graph
+        int waterfallHeight = 0; // Height of the waterfall
 
         double viewBandwidth;
         double viewOffset;

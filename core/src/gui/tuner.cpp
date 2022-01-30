@@ -31,7 +31,7 @@ namespace tuner {
 
         ImGui::WaterfallVFO* vfo = gui::waterfall.vfos[vfoName];
 
-        double currentOff =  vfo->centerOffset;
+        double currentOff = vfo->centerOffset;
         double currentTune = gui::waterfall.getCenterFrequency() + vfo->generalOffset;
         double delta = freq - currentTune;
 
@@ -44,7 +44,6 @@ namespace tuner {
         double viewBottom = view - (viewBW / 2.0);
         double viewTop = view + (viewBW / 2.0);
 
-        double wholeFreq = gui::waterfall.getCenterFrequency();
         double bottom = -(BW / 2.0);
         double top = (BW / 2.0);
 
@@ -78,7 +77,6 @@ namespace tuner {
         if (delta < 0) {
             double newViewOff = vfoTop - (viewBW / 2.0) + (viewBW / 10.0);
             double newViewBottom = newViewOff - (viewBW / 2.0);
-            double newViewTop = newViewOff + (viewBW / 2.0);
 
             if (newViewBottom > bottom) {
                 gui::waterfall.setViewOffset(newViewOff);
@@ -94,7 +92,6 @@ namespace tuner {
         }
         else {
             double newViewOff = vfoBottom + (viewBW / 2.0) - (viewBW / 10.0);
-            double newViewBottom = newViewOff - (viewBW / 2.0);
             double newViewTop = newViewOff + (viewBW / 2.0);
 
             if (newViewTop < top) {
@@ -119,21 +116,21 @@ namespace tuner {
 
     void tune(int mode, std::string vfoName, double freq) {
         switch (mode) {
-            case TUNER_MODE_CENTER:
-                centerTuning(vfoName, freq);
-                break;
-            case TUNER_MODE_NORMAL:
-                normalTuning(vfoName, freq);
-                break;
-            case TUNER_MODE_LOWER_HALF:
-                normalTuning(vfoName, freq);
-                break;
-            case TUNER_MODE_UPPER_HALF:
-                normalTuning(vfoName, freq);
-                break;
-            case TUNER_MODE_IQ_ONLY:
-                iqTuning(freq);
-                break;
+        case TUNER_MODE_CENTER:
+            centerTuning(vfoName, freq);
+            break;
+        case TUNER_MODE_NORMAL:
+            normalTuning(vfoName, freq);
+            break;
+        case TUNER_MODE_LOWER_HALF:
+            normalTuning(vfoName, freq);
+            break;
+        case TUNER_MODE_UPPER_HALF:
+            normalTuning(vfoName, freq);
+            break;
+        case TUNER_MODE_IQ_ONLY:
+            iqTuning(freq);
+            break;
         }
     }
 }

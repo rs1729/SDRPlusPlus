@@ -8,11 +8,11 @@
 #include <config.h>
 #include <options.h>
 #include <sdrplay_api.h>
-
+#include <gui/smgui.h>
 
 #define CONCAT(a, b) ((std::string(a) + b).c_str())
 
-SDRPP_MOD_INFO {
+SDRPP_MOD_INFO{
     /* Name:            */ "sdrplay_source",
     /* Description:     */ "SDRplay source module for SDR++",
     /* Author:          */ "Ryzerth",
@@ -103,13 +103,13 @@ struct ifMode_t {
 };
 
 ifMode_t ifModes[] = {
-    { sdrplay_api_IF_Zero,  sdrplay_api_BW_1_536, 2000000, 2000000},
-    { sdrplay_api_IF_2_048, sdrplay_api_BW_1_536, 8000000, 2000000},
-    { sdrplay_api_IF_2_048, sdrplay_api_BW_5_000, 8000000, 2000000},
-    { sdrplay_api_IF_1_620, sdrplay_api_BW_1_536, 6000000, 2000000},
-    { sdrplay_api_IF_0_450, sdrplay_api_BW_0_600, 2000000, 1000000},
-    { sdrplay_api_IF_0_450, sdrplay_api_BW_0_300, 2000000, 500000},
-    { sdrplay_api_IF_0_450, sdrplay_api_BW_0_200, 2000000, 500000},
+    { sdrplay_api_IF_Zero, sdrplay_api_BW_1_536, 2000000, 2000000 },
+    { sdrplay_api_IF_2_048, sdrplay_api_BW_1_536, 8000000, 2000000 },
+    { sdrplay_api_IF_2_048, sdrplay_api_BW_5_000, 8000000, 2000000 },
+    { sdrplay_api_IF_1_620, sdrplay_api_BW_1_536, 6000000, 2000000 },
+    { sdrplay_api_IF_0_450, sdrplay_api_BW_0_600, 2000000, 1000000 },
+    { sdrplay_api_IF_0_450, sdrplay_api_BW_0_300, 2000000, 500000 },
+    { sdrplay_api_IF_0_450, sdrplay_api_BW_0_200, 2000000, 500000 },
 };
 
 const char* ifModeTxt =
@@ -147,7 +147,7 @@ public:
 
         handler.ctx = this;
         handler.selectHandler = menuSelected;
-        handler.deselectHandler = menuDeselected; 
+        handler.deselectHandler = menuDeselected;
         handler.menuHandler = menuHandler;
         handler.startHandler = start;
         handler.stopHandler = stop;
@@ -160,17 +160,6 @@ public:
         std::string confSelectDev = config.conf["device"];
         config.release();
         selectByName(confSelectDev);
-
-        // if (sampleRateList.size() > 0) {
-        //     sampleRate = sampleRateList[0];
-        // }
-
-        // Select device from config
-        // config.acquire();
-        // std::string devSerial = config.conf["device"];
-        // config.release();
-        // selectByString(devSerial);
-        // core::setInputSampleRate(sampleRate);
 
         sigpath::sourceManager.registerSource("SDRplay", &handler);
 
@@ -210,24 +199,36 @@ public:
             devList.push_back(devArr[i]);
             std::string name = "";
             switch (devArr[i].hwVer) {
-                case SDRPLAY_RSP1_ID:
-                    name = "RSP1 ("; name += devArr[i].SerNo; name += ')';
-                    break;
-                case SDRPLAY_RSP1A_ID:
-                    name = "RSP1A ("; name += devArr[i].SerNo; name += ')';
-                    break;
-                case SDRPLAY_RSP2_ID:
-                    name = "RSP2 ("; name += devArr[i].SerNo; name += ')';
-                    break;
-                case SDRPLAY_RSPduo_ID:
-                    name = "RSPduo ("; name += devArr[i].SerNo; name += ')';
-                    break;
-                case SDRPLAY_RSPdx_ID:
-                    name = "RSPdx ("; name += devArr[i].SerNo; name += ')';
-                    break;
-                default:
-                    name = "Unknown ("; name += devArr[i].SerNo; name += ')';
-                    break;
+            case SDRPLAY_RSP1_ID:
+                name = "RSP1 (";
+                name += devArr[i].SerNo;
+                name += ')';
+                break;
+            case SDRPLAY_RSP1A_ID:
+                name = "RSP1A (";
+                name += devArr[i].SerNo;
+                name += ')';
+                break;
+            case SDRPLAY_RSP2_ID:
+                name = "RSP2 (";
+                name += devArr[i].SerNo;
+                name += ')';
+                break;
+            case SDRPLAY_RSPduo_ID:
+                name = "RSPduo (";
+                name += devArr[i].SerNo;
+                name += ')';
+                break;
+            case SDRPLAY_RSPdx_ID:
+                name = "RSPdx (";
+                name += devArr[i].SerNo;
+                name += ')';
+                break;
+            default:
+                name = "Unknown (";
+                name += devArr[i].SerNo;
+                name += ')';
+                break;
             }
             devNameList.push_back(name);
             devListTxt += name;
@@ -372,9 +373,9 @@ public:
             }
         }
 
-        if(config.conf["devices"][selectedName].contains("ifModeId")) {
-            ifModeId=config.conf["devices"][selectedName]["ifModeId"];
-            if(ifModeId != 0){
+        if (config.conf["devices"][selectedName].contains("ifModeId")) {
+            ifModeId = config.conf["devices"][selectedName]["ifModeId"];
+            if (ifModeId != 0) {
                 sampleRate = ifModes[ifModeId].effectiveSamplerate;
             }
         }
@@ -473,14 +474,14 @@ public:
         }
 
         config.release(created);
-        
+
         if (lnaGain >= lnaSteps) { lnaGain = lnaSteps - 1; }
 
         // Release device after selecting
         sdrplay_api_Uninit(openDev.dev);
         sdrplay_api_ReleaseDevice(&openDev);
     }
-    
+
     void rspDuoSelectTuner(sdrplay_api_TunerSelectT tuner, sdrplay_api_RspDuo_AmPortSelectT amPort) {
         if (openDev.tuner != tuner) {
             spdlog::info("Swapping tuners");
@@ -500,7 +501,6 @@ public:
         channelParams->tunerParams.gain.gRdB = gain;
         sdrplay_api_Update(openDev.dev, openDev.tuner, sdrplay_api_Update_Tuner_Gr, sdrplay_api_Update_Ext1_None);
         sdrplay_api_Update(openDev.dev, openDev.tuner, sdrplay_api_Update_Tuner_Gr, sdrplay_api_Update_Ext1_None);
-    
     }
 
     void rspDuoSelectAntennaPort(int port) {
@@ -534,7 +534,7 @@ private:
         SDRPlaySourceModule* _this = (SDRPlaySourceModule*)ctx;
         spdlog::info("SDRPlaySourceModule '{0}': Menu Deselect!", _this->name);
     }
-    
+
     static void start(void* ctx) {
         SDRPlaySourceModule* _this = (SDRPlaySourceModule*)ctx;
         if (_this->running) { return; }
@@ -620,11 +620,12 @@ private:
         }
 
         // General options
-        if(_this->ifModeId == 0){
+        if (_this->ifModeId == 0) {
             _this->bandwidth = (_this->bandwidthId == 8) ? preferedBandwidth[_this->srId] : bandwidths[_this->bandwidthId];
             _this->openDevParams->devParams->fsFreq.fsHz = _this->sampleRate;
             _this->channelParams->tunerParams.bwType = _this->bandwidth;
-        } else {
+        }
+        else {
             _this->openDevParams->devParams->fsFreq.fsHz = ifModes[_this->ifModeId].deviceSamplerate;
             _this->channelParams->tunerParams.bwType = ifModes[_this->ifModeId].bw;
         }
@@ -658,13 +659,13 @@ private:
         _this->running = true;
         spdlog::info("SDRPlaySourceModule '{0}': Start!", _this->name);
     }
-    
+
     static void stop(void* ctx) {
         SDRPlaySourceModule* _this = (SDRPlaySourceModule*)ctx;
         if (!_this->running) { return; }
         _this->running = false;
         _this->stream.stopWriter();
-        
+
         // Release device after stopping
         sdrplay_api_Uninit(_this->openDev.dev);
         sdrplay_api_ReleaseDevice(&_this->openDev);
@@ -672,7 +673,7 @@ private:
         _this->stream.clearWriteStop();
         spdlog::info("SDRPlaySourceModule '{0}': Stop!", _this->name);
     }
-    
+
     static void tune(double freq, void* ctx) {
         SDRPlaySourceModule* _this = (SDRPlaySourceModule*)ctx;
         if (_this->running) {
@@ -682,17 +683,15 @@ private:
         _this->freq = freq;
         spdlog::info("SDRPlaySourceModule '{0}': Tune: {1}!", _this->name, freq);
     }
-    
+
     static void menuHandler(void* ctx) {
         SDRPlaySourceModule* _this = (SDRPlaySourceModule*)ctx;
-        float menuWidth = ImGui::GetContentRegionAvailWidth();
 
-        if (_this->running) { style::beginDisabled(); }
+        if (_this->running) { SmGui::BeginDisabled(); }
 
-        ImGui::SetNextItemWidth(menuWidth);
-        
-       
-        if (ImGui::Combo(CONCAT("##sdrplay_dev", _this->name), &_this->devId, _this->devListTxt.c_str())) {
+        SmGui::FillWidth();
+        SmGui::ForceSync();
+        if (SmGui::Combo(CONCAT("##sdrplay_dev", _this->name), &_this->devId, _this->devListTxt.c_str())) {
             _this->selectById(_this->devId);
             config.acquire();
             config.conf["device"] = _this->devNameList[_this->devId];
@@ -700,7 +699,7 @@ private:
         }
 
         if (_this->ifModeId == 0) {
-            if (ImGui::Combo(CONCAT("##sdrplay_sr", _this->name), &_this->srId, sampleRatesTxt)) {
+            if (SmGui::Combo(CONCAT("##sdrplay_sr", _this->name), &_this->srId, sampleRatesTxt)) {
                 _this->sampleRate = sampleRates[_this->srId];
                 if (_this->bandwidthId == 8) {
                     _this->bandwidth = preferedBandwidth[_this->srId];
@@ -711,15 +710,16 @@ private:
                 config.release(true);
             }
 
-            ImGui::SameLine();
-            float refreshBtnWdith = menuWidth - ImGui::GetCursorPosX();
-            if (ImGui::Button(CONCAT("Refresh##sdrplay_refresh", _this->name), ImVec2(refreshBtnWdith, 0))) {
+            SmGui::SameLine();
+            SmGui::FillWidth();
+            SmGui::ForceSync();
+            if (SmGui::Button(CONCAT("Refresh##sdrplay_refresh", _this->name))) {
                 _this->refresh();
                 _this->selectByName(_this->selectedName);
             }
 
-            ImGui::SetNextItemWidth(menuWidth);
-            if (ImGui::Combo(CONCAT("##sdrplay_bw", _this->name), &_this->bandwidthId, bandwidthsTxt)) {
+            SmGui::FillWidth();
+            if (SmGui::Combo(CONCAT("##sdrplay_bw", _this->name), &_this->bandwidthId, bandwidthsTxt)) {
                 _this->bandwidth = (_this->bandwidthId == 8) ? preferedBandwidth[_this->srId] : bandwidths[_this->bandwidthId];
                 if (_this->running) {
                     _this->channelParams->tunerParams.bwType = _this->bandwidth;
@@ -731,39 +731,41 @@ private:
             }
         }
         else {
-            if (ImGui::Button(CONCAT("Refresh##sdrplay_refresh", _this->name), ImVec2(menuWidth, 0))) {
+            SmGui::FillWidth();
+            SmGui::ForceSync();
+            if (SmGui::Button(CONCAT("Refresh##sdrplay_refresh", _this->name))) {
                 _this->refresh();
                 _this->selectByName(_this->selectedName);
             }
         }
-        
-        ImGui::Text("IF Mode");
-        ImGui::SameLine();
-        ImGui::SetNextItemWidth(menuWidth - ImGui::GetCursorPosX());
-        if (ImGui::Combo(CONCAT("##sdrplay_ifmode", _this->name), &_this->ifModeId, ifModeTxt)) {
-            if(_this->ifModeId != 0){
+
+        SmGui::LeftLabel("IF Mode");
+        SmGui::FillWidth();
+        SmGui::ForceSync();
+        if (SmGui::Combo(CONCAT("##sdrplay_ifmode", _this->name), &_this->ifModeId, ifModeTxt)) {
+            if (_this->ifModeId != 0) {
                 _this->bandwidth = ifModes[_this->ifModeId].bw;
                 _this->sampleRate = ifModes[_this->ifModeId].effectiveSamplerate;
-            } else {
+            }
+            else {
                 config.acquire();
                 _this->sampleRate = config.conf["devices"][_this->selectedName]["sampleRate"];
                 _this->bandwidthId = config.conf["devices"][_this->selectedName]["bwMode"];
                 config.release(false);
                 _this->bandwidth = (_this->bandwidthId == 8) ? preferedBandwidth[_this->srId] : bandwidths[_this->bandwidthId];
-            }            
+            }
             core::setInputSampleRate(_this->sampleRate);
             config.acquire();
             config.conf["devices"][_this->selectedName]["ifModeId"] = _this->ifModeId;
             config.release(true);
         }
 
-        if (_this->running) { style::endDisabled(); } 
+        if (_this->running) { SmGui::EndDisabled(); }
 
         if (_this->selectedName != "") {
-            ImGui::PushItemWidth(menuWidth - ImGui::CalcTextSize("LNA Gain").x - 10);
-            ImGui::LeftLabel("LNA Gain");
-            float pos = ImGui::GetCursorPosX();
-            if (ImGui::SliderInt(CONCAT("##sdrplay_lna_gain", _this->name), &_this->lnaGain, _this->lnaSteps - 1, 0, "")) {
+            SmGui::LeftLabel("LNA Gain");
+            SmGui::FillWidth();
+            if (SmGui::SliderInt(CONCAT("##sdrplay_lna_gain", _this->name), &_this->lnaGain, _this->lnaSteps - 1, 0, SmGui::FMT_STR_NONE)) {
                 if (_this->running) {
                     _this->channelParams->tunerParams.gain.LNAstate = _this->lnaGain;
                     sdrplay_api_Update(_this->openDev.dev, _this->openDev.tuner, sdrplay_api_Update_Tuner_Gr, sdrplay_api_Update_Ext1_None);
@@ -773,10 +775,10 @@ private:
                 config.release(true);
             }
 
-            if (_this->agc > 0) { style::beginDisabled(); }
-            ImGui::LeftLabel("IF Gain");
-            ImGui::SetCursorPosX(pos);
-            if (ImGui::SliderInt(CONCAT("##sdrplay_gain", _this->name), &_this->gain, 59, 20, "")) {
+            if (_this->agc > 0) { SmGui::BeginDisabled(); }
+            SmGui::LeftLabel("IF Gain");
+            SmGui::FillWidth();
+            if (SmGui::SliderInt(CONCAT("##sdrplay_gain", _this->name), &_this->gain, 59, 20, SmGui::FMT_STR_NONE)) {
                 if (_this->running) {
                     _this->channelParams->tunerParams.gain.gRdB = _this->gain;
                     sdrplay_api_Update(_this->openDev.dev, _this->openDev.tuner, sdrplay_api_Update_Tuner_Gr, sdrplay_api_Update_Ext1_None);
@@ -785,8 +787,7 @@ private:
                 config.conf["devices"][_this->selectedName]["ifGain"] = _this->gain;
                 config.release(true);
             }
-            ImGui::PopItemWidth();
-            if (_this->agc > 0) { style::endDisabled(); }
+            if (_this->agc > 0) { SmGui::EndDisabled(); }
 
 
             if (_this->agcParamEdit) {
@@ -818,7 +819,8 @@ private:
                 }
             }
 
-            if (ImGui::Checkbox(CONCAT("IF AGC##sdrplay_agc", _this->name), &_this->agc)) {
+            SmGui::ForceSync();
+            if (SmGui::Checkbox(CONCAT("IF AGC##sdrplay_agc", _this->name), &_this->agc)) {
                 if (_this->running) {
                     _this->channelParams->ctrlParams.agc.enable = _this->agc ? sdrplay_api_AGC_CTRL_EN : sdrplay_api_AGC_DISABLE;
                     if (_this->agc) {
@@ -839,8 +841,10 @@ private:
                 config.conf["devices"][_this->selectedName]["agc"] = _this->agc;
                 config.release(true);
             }
-            ImGui::SameLine();
-            if (ImGui::Button(CONCAT("Parameters##sdrplay_agc_edit_btn", _this->name), ImVec2(menuWidth - ImGui::GetCursorPosX(), 0))) {
+            SmGui::SameLine();
+            SmGui::FillWidth();
+            SmGui::ForceSync();
+            if (SmGui::Button(CONCAT("Parameters##sdrplay_agc_edit_btn", _this->name))) {
                 _this->agcParamEdit = true;
                 _this->_agcAttack = _this->agcAttack;
                 _this->_agcDecay = _this->agcDecay;
@@ -850,101 +854,102 @@ private:
             }
 
             switch (_this->openDev.hwVer) {
-                case SDRPLAY_RSP1_ID:
-                    _this->RSP1Menu(menuWidth);
-                    break;
-                case SDRPLAY_RSP1A_ID:
-                    _this->RSP1AMenu(menuWidth);
-                    break;
-                case SDRPLAY_RSP2_ID:
-                    _this->RSP2Menu(menuWidth);
-                    break;
-                case SDRPLAY_RSPduo_ID:
-                    _this->RSPduoMenu(menuWidth);
-                    break;
-                case SDRPLAY_RSPdx_ID:
-                    _this->RSPdxMenu(menuWidth);
-                    break;
-                default:
-                    _this->RSPUnsupportedMenu(menuWidth);
-                    break;
+            case SDRPLAY_RSP1_ID:
+                _this->RSP1Menu();
+                break;
+            case SDRPLAY_RSP1A_ID:
+                _this->RSP1AMenu();
+                break;
+            case SDRPLAY_RSP2_ID:
+                _this->RSP2Menu();
+                break;
+            case SDRPLAY_RSPduo_ID:
+                _this->RSPduoMenu();
+                break;
+            case SDRPLAY_RSPdx_ID:
+                _this->RSPdxMenu();
+                break;
+            default:
+                _this->RSPUnsupportedMenu();
+                break;
             }
         }
         else {
-            ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "No device available");
-        }       
+            SmGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "No device available");
+        }
     }
 
     bool agcParamMenu(bool& valid) {
         bool open = true;
         gui::mainWindow.lockWaterfallControls = true;
-        ImGui::OpenPopup("Edit##sdrplay_source_edit_agc_params_");
-        if (ImGui::BeginPopup("Edit##sdrplay_source_edit_agc_params_", ImGuiWindowFlags_NoResize)) {
+        SmGui::OpenPopup("Edit##sdrplay_source_edit_agc_params_");
+        if (SmGui::BeginPopup("Edit##sdrplay_source_edit_agc_params_", ImGuiWindowFlags_NoResize)) {
+            if (SmGui::BeginTable(("sdrplay_source_agc_param_tbl" + name).c_str(), 2)) {
+                SmGui::TableNextRow();
+                SmGui::TableSetColumnIndex(0);
+                SmGui::LeftLabel("Attack");
+                SmGui::TableSetColumnIndex(1);
+                SmGui::SetNextItemWidth(100);
+                SmGui::InputInt("ms##sdrplay_source_agc_attack", &_agcAttack);
+                _agcAttack = std::clamp<int>(_agcAttack, 0, 65535);
 
-            ImGui::BeginTable(("sdrplay_source_agc_param_tbl"+name).c_str(), 2);
+                SmGui::TableNextRow();
+                SmGui::TableSetColumnIndex(0);
+                SmGui::LeftLabel("Decay");
+                SmGui::TableSetColumnIndex(1);
+                SmGui::SetNextItemWidth(100);
+                SmGui::InputInt("ms##sdrplay_source_agc_decay", &_agcDecay);
+                _agcDecay = std::clamp<int>(_agcDecay, 0, 65535);
 
-            ImGui::TableNextRow();
-            ImGui::TableSetColumnIndex(0);
-            ImGui::LeftLabel("Attack");
-            ImGui::TableSetColumnIndex(1);
-            ImGui::SetNextItemWidth(100);
-            ImGui::InputInt("ms##sdrplay_source_agc_attack", &_agcAttack);
-            _agcAttack = std::clamp<int>(_agcAttack, 0, 65535);
+                SmGui::TableNextRow();
+                SmGui::TableSetColumnIndex(0);
+                SmGui::LeftLabel("Decay Delay");
+                SmGui::TableSetColumnIndex(1);
+                SmGui::SetNextItemWidth(100);
+                SmGui::InputInt("ms##sdrplay_source_agc_decay_delay", &_agcDecayDelay);
+                _agcDecayDelay = std::clamp<int>(_agcDecayDelay, 0, 65535);
 
-            ImGui::TableNextRow();
-            ImGui::TableSetColumnIndex(0);
-            ImGui::LeftLabel("Decay");
-            ImGui::TableSetColumnIndex(1);
-            ImGui::SetNextItemWidth(100);
-            ImGui::InputInt("ms##sdrplay_source_agc_decay", &_agcDecay);
-            _agcDecay = std::clamp<int>(_agcDecay, 0, 65535);
+                SmGui::TableNextRow();
+                SmGui::TableSetColumnIndex(0);
+                SmGui::LeftLabel("Decay Threshold");
+                SmGui::TableSetColumnIndex(1);
+                SmGui::SetNextItemWidth(100);
+                SmGui::InputInt("dB##sdrplay_source_agc_decay_thresh", &_agcDecayThreshold);
+                _agcDecayThreshold = std::clamp<int>(_agcDecayThreshold, 0, 100);
 
-            ImGui::TableNextRow();
-            ImGui::TableSetColumnIndex(0);
-            ImGui::LeftLabel("Decay Delay");
-            ImGui::TableSetColumnIndex(1);
-            ImGui::SetNextItemWidth(100);
-            ImGui::InputInt("ms##sdrplay_source_agc_decay_delay", &_agcDecayDelay);
-            _agcDecayDelay = std::clamp<int>(_agcDecayDelay, 0, 65535);
+                SmGui::TableNextRow();
+                SmGui::TableSetColumnIndex(0);
+                SmGui::LeftLabel("Setpoint");
+                SmGui::TableSetColumnIndex(1);
+                SmGui::SetNextItemWidth(100);
+                SmGui::InputInt("dBFS##sdrplay_source_agc_setpoint", &_agcSetPoint);
+                _agcSetPoint = std::clamp<int>(_agcSetPoint, -60, -20);
 
-            ImGui::TableNextRow();
-            ImGui::TableSetColumnIndex(0);
-            ImGui::LeftLabel("Decay Threshold");
-            ImGui::TableSetColumnIndex(1);
-            ImGui::SetNextItemWidth(100);
-            ImGui::InputInt("dB##sdrplay_source_agc_decay_thresh", &_agcDecayThreshold);
-            _agcDecayThreshold = std::clamp<int>(_agcDecayThreshold, 0, 100);
+                SmGui::EndTable();
+            }
 
-            ImGui::TableNextRow();
-            ImGui::TableSetColumnIndex(0);
-            ImGui::LeftLabel("Setpoint");
-            ImGui::TableSetColumnIndex(1);
-            ImGui::SetNextItemWidth(100);
-            ImGui::InputInt("dBFS##sdrplay_source_agc_setpoint", &_agcSetPoint);
-            _agcSetPoint = std::clamp<int>(_agcSetPoint, -60, -20);
-
-            ImGui::EndTable();
-
-            if (ImGui::Button("Apply")) {
+            SmGui::ForceSync();
+            if (SmGui::Button("Apply", ImVec2(100, 0))) {
                 open = false;
                 valid = true;
             }
-            ImGui::SameLine();
-            if (ImGui::Button("Cancel")) {
+            SmGui::SameLine();
+            SmGui::ForceSync();
+            if (SmGui::Button("Cancel", ImVec2(100, 0))) {
                 open = false;
                 valid = false;
             }
-            ImGui::EndPopup();
+            SmGui::EndPopup();
         }
         return open;
     }
-        
-    void RSP1Menu(float menuWidth) {
+
+    void RSP1Menu() {
         // No options?
     }
 
-    void RSP1AMenu(float menuWidth) {
-        if (ImGui::Checkbox(CONCAT("FM Notch##sdrplay_rsp1a_fmnotch", name), &rsp1a_fmNotch)) {
+    void RSP1AMenu() {
+        if (SmGui::Checkbox(CONCAT("FM Notch##sdrplay_rsp1a_fmnotch", name), &rsp1a_fmNotch)) {
             if (running) {
                 openDevParams->devParams->rsp1aParams.rfNotchEnable = rsp1a_fmNotch;
                 sdrplay_api_Update(openDev.dev, openDev.tuner, sdrplay_api_Update_Rsp1a_RfNotchControl, sdrplay_api_Update_Ext1_None);
@@ -953,7 +958,7 @@ private:
             config.conf["devices"][selectedName]["fmNotch"] = rsp1a_fmNotch;
             config.release(true);
         }
-        if (ImGui::Checkbox(CONCAT("DAB Notch##sdrplay_rsp1a_dabnotch", name), &rsp1a_dabNotch)) {
+        if (SmGui::Checkbox(CONCAT("DAB Notch##sdrplay_rsp1a_dabnotch", name), &rsp1a_dabNotch)) {
             if (running) {
                 openDevParams->devParams->rsp1aParams.rfNotchEnable = rsp1a_dabNotch;
                 sdrplay_api_Update(openDev.dev, openDev.tuner, sdrplay_api_Update_Rsp1a_RfDabNotchControl, sdrplay_api_Update_Ext1_None);
@@ -962,7 +967,7 @@ private:
             config.conf["devices"][selectedName]["dabNotch"] = rsp1a_dabNotch;
             config.release(true);
         }
-        if (ImGui::Checkbox(CONCAT("Bias-T##sdrplay_rsp1a_biast", name), &rsp1a_biasT)) {
+        if (SmGui::Checkbox(CONCAT("Bias-T##sdrplay_rsp1a_biast", name), &rsp1a_biasT)) {
             if (running) {
                 channelParams->rsp1aTunerParams.biasTEnable = rsp1a_biasT;
                 sdrplay_api_Update(openDev.dev, openDev.tuner, sdrplay_api_Update_Rsp1a_BiasTControl, sdrplay_api_Update_Ext1_None);
@@ -973,10 +978,10 @@ private:
         }
     }
 
-    void RSP2Menu(float menuWidth) {
-        ImGui::LeftLabel("Antenna");
-        ImGui::SetNextItemWidth(menuWidth - ImGui::GetCursorPosX());
-        if (ImGui::Combo(CONCAT("##sdrplay_rsp2_ant", name), &rsp2_antennaPort, rsp2_antennaPortsTxt)) {
+    void RSP2Menu() {
+        SmGui::LeftLabel("Antenna");
+        SmGui::FillWidth();
+        if (SmGui::Combo(CONCAT("##sdrplay_rsp2_ant", name), &rsp2_antennaPort, rsp2_antennaPortsTxt)) {
             if (running) {
                 channelParams->rsp2TunerParams.antennaSel = rsp2_antennaPorts[rsp2_antennaPort];
                 channelParams->rsp2TunerParams.amPortSel = (rsp2_antennaPort == 2) ? sdrplay_api_Rsp2_AMPORT_1 : sdrplay_api_Rsp2_AMPORT_2;
@@ -987,7 +992,7 @@ private:
             config.conf["devices"][selectedName]["antenna"] = rsp2_antennaPort;
             config.release(true);
         }
-        if (ImGui::Checkbox(CONCAT("MW/FM Notch##sdrplay_rsp2_notch", name), &rsp2_notch)) {
+        if (SmGui::Checkbox(CONCAT("MW/FM Notch##sdrplay_rsp2_notch", name), &rsp2_notch)) {
             if (running) {
                 channelParams->rsp2TunerParams.rfNotchEnable = rsp2_notch;
                 sdrplay_api_Update(openDev.dev, openDev.tuner, sdrplay_api_Update_Rsp2_RfNotchControl, sdrplay_api_Update_Ext1_None);
@@ -996,7 +1001,7 @@ private:
             config.conf["devices"][selectedName]["notch"] = rsp2_notch;
             config.release(true);
         }
-        if (ImGui::Checkbox(CONCAT("Bias-T##sdrplay_rsp2_biast", name), &rsp2_biasT)) {
+        if (SmGui::Checkbox(CONCAT("Bias-T##sdrplay_rsp2_biast", name), &rsp2_biasT)) {
             if (running) {
                 channelParams->rsp2TunerParams.biasTEnable = rsp2_biasT;
                 sdrplay_api_Update(openDev.dev, openDev.tuner, sdrplay_api_Update_Rsp2_BiasTControl, sdrplay_api_Update_Ext1_None);
@@ -1007,11 +1012,10 @@ private:
         }
     }
 
-    void RSPduoMenu(float menuWidth) {
-        ImGui::LeftLabel("Antenna");
-        ImGui::SetNextItemWidth(menuWidth - ImGui::GetCursorPosX());
-
-        if (ImGui::Combo(CONCAT("##sdrplay_rspduo_ant", name), &rspduo_antennaPort, rspduo_antennaPortsTxt)) {
+    void RSPduoMenu() {
+        SmGui::LeftLabel("Antenna");
+        SmGui::FillWidth();
+        if (SmGui::Combo(CONCAT("##sdrplay_rspduo_ant", name), &rspduo_antennaPort, rspduo_antennaPortsTxt)) {
             if (running) {
                 rspDuoSelectAntennaPort(rspduo_antennaPort);
             }
@@ -1019,7 +1023,7 @@ private:
             config.conf["devices"][selectedName]["antenna"] = rspduo_antennaPort;
             config.release(true);
         }
-        if (ImGui::Checkbox(CONCAT("FM Notch##sdrplay_rspduo_notch", name), &rspduo_fmNotch)) {
+        if (SmGui::Checkbox(CONCAT("FM Notch##sdrplay_rspduo_notch", name), &rspduo_fmNotch)) {
             if (running) {
                 channelParams->rspDuoTunerParams.rfNotchEnable = rspduo_fmNotch;
                 sdrplay_api_Update(openDev.dev, openDev.tuner, sdrplay_api_Update_RspDuo_RfNotchControl, sdrplay_api_Update_Ext1_None);
@@ -1028,7 +1032,7 @@ private:
             config.conf["devices"][selectedName]["fmNotch"] = rspduo_fmNotch;
             config.release(true);
         }
-        if (ImGui::Checkbox(CONCAT("DAB Notch##sdrplay_rspduo_dabnotch", name), &rspduo_dabNotch)) {
+        if (SmGui::Checkbox(CONCAT("DAB Notch##sdrplay_rspduo_dabnotch", name), &rspduo_dabNotch)) {
             if (running) {
                 channelParams->rspDuoTunerParams.rfDabNotchEnable = rspduo_dabNotch;
                 sdrplay_api_Update(openDev.dev, openDev.tuner, sdrplay_api_Update_RspDuo_RfDabNotchControl, sdrplay_api_Update_Ext1_None);
@@ -1037,7 +1041,7 @@ private:
             config.conf["devices"][selectedName]["dabNotch"] = rspduo_dabNotch;
             config.release(true);
         }
-        if (ImGui::Checkbox(CONCAT("AM Notch##sdrplay_rspduo_dabnotch", name), &rspduo_amNotch)) {
+        if (SmGui::Checkbox(CONCAT("AM Notch##sdrplay_rspduo_dabnotch", name), &rspduo_amNotch)) {
             if (running) {
                 channelParams->rspDuoTunerParams.tuner1AmNotchEnable = rspduo_amNotch;
                 sdrplay_api_Update(openDev.dev, openDev.tuner, sdrplay_api_Update_RspDuo_Tuner1AmNotchControl, sdrplay_api_Update_Ext1_None);
@@ -1046,7 +1050,7 @@ private:
             config.conf["devices"][selectedName]["amNotch"] = rspduo_amNotch;
             config.release(true);
         }
-        if (ImGui::Checkbox(CONCAT("Bias-T##sdrplay_rspduo_biast", name), &rspduo_biasT)) {
+        if (SmGui::Checkbox(CONCAT("Bias-T##sdrplay_rspduo_biast", name), &rspduo_biasT)) {
             if (running) {
                 channelParams->rspDuoTunerParams.biasTEnable = rspduo_biasT;
                 sdrplay_api_Update(openDev.dev, openDev.tuner, sdrplay_api_Update_RspDuo_BiasTControl, sdrplay_api_Update_Ext1_None);
@@ -1057,10 +1061,10 @@ private:
         }
     }
 
-    void RSPdxMenu(float menuWidth) {
-        ImGui::LeftLabel("Antenna");
-        ImGui::SetNextItemWidth(menuWidth - ImGui::GetCursorPosX());
-        if (ImGui::Combo(CONCAT("##sdrplay_rspdx_ant", name), &rspdx_antennaPort, rspdx_antennaPortsTxt)) {
+    void RSPdxMenu() {
+        SmGui::LeftLabel("Antenna");
+        SmGui::FillWidth();
+        if (SmGui::Combo(CONCAT("##sdrplay_rspdx_ant", name), &rspdx_antennaPort, rspdx_antennaPortsTxt)) {
             if (running) {
                 openDevParams->devParams->rspDxParams.antennaSel = rspdx_antennaPorts[rspdx_antennaPort];
                 sdrplay_api_Update(openDev.dev, openDev.tuner, sdrplay_api_Update_None, sdrplay_api_Update_RspDx_AntennaControl);
@@ -1070,7 +1074,7 @@ private:
             config.release(true);
         }
 
-        if (ImGui::Checkbox(CONCAT("FM Notch##sdrplay_rspdx_fmnotch", name), &rspdx_fmNotch)) {
+        if (SmGui::Checkbox(CONCAT("FM Notch##sdrplay_rspdx_fmnotch", name), &rspdx_fmNotch)) {
             if (running) {
                 openDevParams->devParams->rspDxParams.rfNotchEnable = rspdx_fmNotch;
                 sdrplay_api_Update(openDev.dev, openDev.tuner, sdrplay_api_Update_None, sdrplay_api_Update_RspDx_RfNotchControl);
@@ -1079,7 +1083,7 @@ private:
             config.conf["devices"][selectedName]["fmNotch"] = rspdx_fmNotch;
             config.release(true);
         }
-        if (ImGui::Checkbox(CONCAT("DAB Notch##sdrplay_rspdx_dabnotch", name), &rspdx_dabNotch)) {
+        if (SmGui::Checkbox(CONCAT("DAB Notch##sdrplay_rspdx_dabnotch", name), &rspdx_dabNotch)) {
             if (running) {
                 openDevParams->devParams->rspDxParams.rfDabNotchEnable = rspdx_dabNotch;
                 sdrplay_api_Update(openDev.dev, openDev.tuner, sdrplay_api_Update_None, sdrplay_api_Update_RspDx_RfDabNotchControl);
@@ -1088,7 +1092,7 @@ private:
             config.conf["devices"][selectedName]["dabNotch"] = rspdx_dabNotch;
             config.release(true);
         }
-        if (ImGui::Checkbox(CONCAT("Bias-T##sdrplay_rspdx_biast", name), &rspdx_biasT)) {
+        if (SmGui::Checkbox(CONCAT("Bias-T##sdrplay_rspdx_biast", name), &rspdx_biasT)) {
             if (running) {
                 openDevParams->devParams->rspDxParams.biasTEnable = rspdx_biasT;
                 sdrplay_api_Update(openDev.dev, openDev.tuner, sdrplay_api_Update_None, sdrplay_api_Update_RspDx_BiasTControl);
@@ -1099,12 +1103,12 @@ private:
         }
     }
 
-    void RSPUnsupportedMenu(float menuWidth) {
-        ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "Device currently unsupported");
+    void RSPUnsupportedMenu() {
+        SmGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "Device currently unsupported");
     }
 
-    static void streamCB(short *xi, short *xq, sdrplay_api_StreamCbParamsT *params,
-                        unsigned int numSamples, unsigned int reset, void *cbContext) {
+    static void streamCB(short* xi, short* xq, sdrplay_api_StreamCbParamsT* params,
+                         unsigned int numSamples, unsigned int reset, void* cbContext) {
         SDRPlaySourceModule* _this = (SDRPlaySourceModule*)cbContext;
         // TODO: Optimise using volk and math
         if (!_this->running) { return; }
@@ -1121,7 +1125,7 @@ private:
     }
 
     static void eventCB(sdrplay_api_EventT eventId, sdrplay_api_TunerSelectT tuner,
-                        sdrplay_api_EventParamsT *params, void *cbContext) {
+                        sdrplay_api_EventParamsT* params, void* cbContext) {
         SDRPlaySourceModule* _this = (SDRPlaySourceModule*)cbContext;
     }
 
@@ -1137,7 +1141,7 @@ private:
     sdrplay_api_CallbackFnsT cbFuncs;
 
     sdrplay_api_DeviceT openDev;
-    sdrplay_api_DeviceParamsT * openDevParams;
+    sdrplay_api_DeviceParamsT* openDevParams;
     sdrplay_api_RxChannelParamsT* channelParams;
 
     sdrplay_api_Bw_MHzT bandwidth;
@@ -1149,7 +1153,7 @@ private:
     int lnaGain = 9;
     int gain = 59;
     int lnaSteps = 9;
-    
+
     bool agc = false;
     bool agcParamEdit = false;
     int agcAttack = 500;

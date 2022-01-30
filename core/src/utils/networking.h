@@ -33,6 +33,7 @@ namespace net {
         uint8_t* buf;
         void (*handler)(int count, uint8_t* buf, void* ctx);
         void* ctx;
+        bool enforceSize;
     };
 
     struct ConnWriteEntry {
@@ -49,9 +50,9 @@ namespace net {
         bool isOpen();
         void waitForEnd();
 
-        int read(int count, uint8_t* buf);
+        int read(int count, uint8_t* buf, bool enforceSize = true);
         bool write(int count, uint8_t* buf);
-        void readAsync(int count, uint8_t* buf, void (*handler)(int count, uint8_t* buf, void* ctx), void* ctx);
+        void readAsync(int count, uint8_t* buf, void (*handler)(int count, uint8_t* buf, void* ctx), void* ctx, bool enforceSize = true);
         void writeAsync(int count, uint8_t* buf);
 
     private:
@@ -78,7 +79,6 @@ namespace net {
         Socket _sock;
         bool _udp;
         struct sockaddr_in remoteAddr;
-
     };
 
     typedef std::unique_ptr<ConnClass> Conn;
@@ -112,7 +112,6 @@ namespace net {
         std::thread acceptWorkerThread;
 
         Socket sock;
-
     };
 
     typedef std::unique_ptr<ListenerClass> Listener;

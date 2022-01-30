@@ -21,9 +21,9 @@
 #include <fstream>
 #include <chrono>
 
-#define CONCAT(a, b)    ((std::string(a) + b).c_str())
+#define CONCAT(a, b) ((std::string(a) + b).c_str())
 
-SDRPP_MOD_INFO {
+SDRPP_MOD_INFO{
     /* Name:            */ "m17_decoder",
     /* Description:     */ "M17 Digital Voice Decoder for SDR++",
     /* Author:          */ "Ryzerth",
@@ -84,7 +84,7 @@ public:
         sigpath::sinkManager.registerStream(name, &stream);
 
         stream.start();
-               
+
         gui::menu.registerEntry(name, menuHandler, this, this);
     }
 
@@ -107,7 +107,7 @@ public:
 
     void enable() {
         double bw = gui::waterfall.getBandwidth();
-        vfo = sigpath::vfoManager.createVFO(name, ImGui::WaterfallVFO::REF_CENTER, std::clamp<double>(0, -bw/2.0, bw/2.0), 9600, INPUT_SAMPLE_RATE, 9600, 9600, true);
+        vfo = sigpath::vfoManager.createVFO(name, ImGui::WaterfallVFO::REF_CENTER, std::clamp<double>(0, -bw / 2.0, bw / 2.0), 9600, INPUT_SAMPLE_RATE, 9600, 9600, true);
         vfo->setSnapInterval(250);
 
         // Set Input of demod here
@@ -152,7 +152,7 @@ private:
             std::lock_guard lck(_this->lsfMtx);
 
             auto now = std::chrono::high_resolution_clock::now();
-            if (std::chrono::duration_cast<std::chrono::milliseconds>(now-_this->lastUpdated).count() > 1000) {
+            if (std::chrono::duration_cast<std::chrono::milliseconds>(now - _this->lastUpdated).count() > 1000) {
                 _this->lsf.valid = false;
             }
 
@@ -160,62 +160,62 @@ private:
             if (!_this->lsf.valid) {
                 ImGui::TableNextRow();
                 ImGui::TableSetColumnIndex(0);
-                ImGui::Text("Source");
+                ImGui::TextUnformatted("Source");
                 ImGui::TableSetColumnIndex(1);
-                ImGui::Text("--");
+                ImGui::TextUnformatted("--");
 
                 ImGui::TableNextRow();
                 ImGui::TableSetColumnIndex(0);
-                ImGui::Text("Destination");
+                ImGui::TextUnformatted("Destination");
                 ImGui::TableSetColumnIndex(1);
-                ImGui::Text("--");
+                ImGui::TextUnformatted("--");
 
                 ImGui::TableNextRow();
                 ImGui::TableSetColumnIndex(0);
-                ImGui::Text("Data Type");
+                ImGui::TextUnformatted("Data Type");
                 ImGui::TableSetColumnIndex(1);
-                ImGui::Text("--");
+                ImGui::TextUnformatted("--");
 
                 ImGui::TableNextRow();
                 ImGui::TableSetColumnIndex(0);
-                ImGui::Text("Encryption");
+                ImGui::TextUnformatted("Encryption");
                 ImGui::TableSetColumnIndex(1);
-                ImGui::Text("-- (Subtype --)");
+                ImGui::TextUnformatted("-- (Subtype --)");
 
                 ImGui::TableNextRow();
                 ImGui::TableSetColumnIndex(0);
-                ImGui::Text("CAN");
+                ImGui::TextUnformatted("CAN");
                 ImGui::TableSetColumnIndex(1);
-                ImGui::Text("--");
+                ImGui::TextUnformatted("--");
             }
             else {
                 ImGui::TableNextRow();
                 ImGui::TableSetColumnIndex(0);
-                ImGui::Text("Source");
+                ImGui::TextUnformatted("Source");
                 ImGui::TableSetColumnIndex(1);
-                ImGui::Text(_this->lsf.src.c_str());
+                ImGui::TextUnformatted(_this->lsf.src.c_str());
 
                 ImGui::TableNextRow();
                 ImGui::TableSetColumnIndex(0);
-                ImGui::Text("Destination");
+                ImGui::TextUnformatted("Destination");
                 ImGui::TableSetColumnIndex(1);
-                ImGui::Text(_this->lsf.dst.c_str());
+                ImGui::TextUnformatted(_this->lsf.dst.c_str());
 
                 ImGui::TableNextRow();
                 ImGui::TableSetColumnIndex(0);
-                ImGui::Text("Data Type");
+                ImGui::TextUnformatted("Data Type");
                 ImGui::TableSetColumnIndex(1);
-                ImGui::Text(M17DataTypesTxt[_this->lsf.dataType]);
+                ImGui::TextUnformatted(M17DataTypesTxt[_this->lsf.dataType]);
 
                 ImGui::TableNextRow();
                 ImGui::TableSetColumnIndex(0);
-                ImGui::Text("Encryption");
+                ImGui::TextUnformatted("Encryption");
                 ImGui::TableSetColumnIndex(1);
                 ImGui::Text("%s (Subtype %d)", M17EncryptionTypesTxt[_this->lsf.encryptionType], _this->lsf.encryptionSubType);
 
                 ImGui::TableNextRow();
                 ImGui::TableSetColumnIndex(0);
-                ImGui::Text("CAN");
+                ImGui::TextUnformatted("CAN");
                 ImGui::TableSetColumnIndex(1);
                 ImGui::Text("%d", _this->lsf.channelAccessNum);
             }
@@ -251,7 +251,7 @@ private:
         M17DecoderModule* _this = (M17DecoderModule*)ctx;
         // TODO: If too slow, change all demods here and not when setting
         _this->audioSampRate = sampleRate;
-        _this->resampWin.setCutoff(std::min<float>(sampleRate/2, 4000));
+        _this->resampWin.setCutoff(std::min<float>(sampleRate / 2, 4000));
         _this->resamp.tempStop();
         _this->resamp.setOutSampleRate(sampleRate);
         _this->resampWin.setSampleRate(8000 * _this->resamp.getInterpolation());
@@ -273,7 +273,7 @@ private:
     VFOManager::VFO* vfo;
 
     dsp::M17Decoder decoder;
-    
+
     dsp::Reshaper<float> reshape;
     dsp::HandlerSink<float> diagHandler;
 

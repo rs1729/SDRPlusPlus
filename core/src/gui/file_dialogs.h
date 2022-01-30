@@ -1706,4 +1706,3 @@ inline std::string select_folder::result()
 #endif // PFD_SKIP_IMPLEMENTATION
 
 } // namespace pfd
-

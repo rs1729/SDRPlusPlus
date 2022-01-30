@@ -29,7 +29,7 @@ namespace vfo_color_menu {
         json conf = core::configManager.conf["vfoColors"];
         for (auto& [name, val] : conf.items()) {
             // If not a string, repair with default
-            if (!val.is_string()) { 
+            if (!val.is_string()) {
                 core::configManager.conf["vfoColors"][name] = "#FFFFFF";
                 vfoColors[name] = ImVec4(1.0f, 1.0f, 1.0f, 1.0f);
                 modified = true;
@@ -104,7 +104,6 @@ namespace vfo_color_menu {
                 vfoColors[name] = ImVec4(1.0f, 1.0f, 1.0f, 1.0f);
                 vfo->color = IM_COL32(255, 255, 255, 50);
                 core::configManager.acquire();
-                char buf[16];
                 core::configManager.conf["vfoColors"][name] = "#FFFFFF";
                 core::configManager.release(true);
             }
@@ -120,7 +119,7 @@ namespace vfo_color_menu {
             if (vfoColors.find(name) != vfoColors.end()) {
                 col = vfoColors[name];
             }
-            if (ImGui::ColorEdit3(("##vfo_color_"+name).c_str(), (float*)&col, ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoLabel)) {
+            if (ImGui::ColorEdit3(("##vfo_color_" + name).c_str(), (float*)&col, ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoLabel)) {
                 vfoColors[name] = col;
                 vfo->color = IM_COL32((int)roundf(col.x * 255), (int)roundf(col.y * 255), (int)roundf(col.z * 255), 50);
                 core::configManager.acquire();
@@ -130,7 +129,7 @@ namespace vfo_color_menu {
                 core::configManager.release(true);
             }
             ImGui::SameLine();
-            ImGui::Text(name.c_str());
+            ImGui::TextUnformatted(name.c_str());
         }
         ImGui::EndTable();
     }
